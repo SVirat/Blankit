@@ -347,9 +347,6 @@
         if (el) el.remove();
         if (id === 'cloaker-onboard-badge') {
             _onboardBadgeDismissed = true;
-        }
-        // Mark complete when both have been shown and the badge was dismissed
-        if (_onboardBadgeDismissed && _onboardEyeShown) {
             chrome.storage.local.set({ onboardingComplete: true });
         }
     }
@@ -379,10 +376,6 @@
             'Reveal or re-hide your original values'
         );
         setTimeout(function () { dismissOnboardTip('cloaker-onboard-eye'); }, 8000);
-        // If badge was already dismissed, mark onboarding complete
-        if (_onboardBadgeDismissed) {
-            chrome.storage.local.set({ onboardingComplete: true });
-        }
     }
 
     // =========================================================================
