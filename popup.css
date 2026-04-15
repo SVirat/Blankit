@@ -49,7 +49,6 @@ body {
     align-items: center;
     justify-content: space-between;
     padding: 16px 20px;
-    border-bottom: 1px solid #27272a;
 }
 
 /* =========================================================================
@@ -58,6 +57,7 @@ body {
 
 .deep-sleep-section {
     padding: 12px 20px;
+    border-bottom: 1px solid #27272a;
 }
 
 .deep-sleep-left {
@@ -469,7 +469,7 @@ input:checked + .slider::before {
    ========================================================================= */
 
 .footer {
-    padding: 12px 20px;
+    padding: 6px 20px 2px;
     text-align: center;
     font-size: 10px;
     color: #52525b;
@@ -484,7 +484,7 @@ input:checked + .slider::before {
     align-items: center;
     justify-content: center;
     gap: 8px;
-    padding: 10px 20px 14px;
+    padding: 4px 20px 10px;
 }
 
 .share-rate-text {
