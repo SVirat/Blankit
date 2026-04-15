@@ -1405,7 +1405,7 @@ Blankit/
 │       └── service-worker.js    # Session lifecycle & Storage
 ```
 
-### 17.1 Architecture Decision: Single File with Decoupled Strategies
+### 16.1 Architecture Decision: Single File with Decoupled Strategies
 
 Rather than splitting into separate per-site files (which would duplicate the shared PII engine, document processing, and network interceptors), the per-platform file upload strategies are **logically decoupled within `intercept.js`**. Each strategy is:
 
