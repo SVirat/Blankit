@@ -1416,6 +1416,14 @@ Rather than splitting into separate per-site files (which would duplicate the sh
 
 The shared core (PII detection, DOCX/text redaction, fetch/XHR interception, UI input handling) remains in a single file to avoid code duplication.
 
+For publishing to the Chrome Web Store, before zipping the extension for upload, remove the following files and folders that are not needed at runtime:
+
+- `tests/` — test suite and dev dependencies
+- `PRD.md` — product spec
+- `LICENSE.md` — license file
+
+This reduces the package size for the Chrome Web Store.
+
 ---
 
 ## 17. Glossary
