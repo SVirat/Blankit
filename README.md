@@ -13,6 +13,11 @@
 </p>
 
 ---
+![Build](https://img.shields.io/badge/build-passing-brightgreen)
+![Statements](https://img.shields.io/badge/coverage--statements-100%25-brightgreen)
+![Functions](https://img.shields.io/badge/coverage--functions-100%25-brightgreen)
+![Lines](https://img.shields.io/badge/coverage--lines-100%25-brightgreen)
+![Branches](https://img.shields.io/badge/coverage--branches-100%25-brightgreen)
 
 Blankit is a Chrome extension that automatically scrubs sensitive personal information (names, SSNs, emails, phone numbers, medical records, credit cards, etc.) from your prompts and uploaded documents before they reach ChatGPT, Claude, or Gemini. All processing happens entirely in your browser, nothing leaves your device.
 
