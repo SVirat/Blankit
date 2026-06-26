@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "Blankit",
-  "version": "1.0.4",
+  "name": "Blankit - Privacy Protector for AI Chats",
+  "version": "1.0.5",
   "description": "Real-time, local-first PII redaction for AI chats. All processing stays in your browser.",
   "permissions": ["storage"],
   "host_permissions": [
