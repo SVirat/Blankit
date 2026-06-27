@@ -177,6 +177,223 @@
     ];
 
     // =========================================================================
+    // Multi-language support — built from window.__cloakerLocales
+    // -------------------------------------------------------------------------
+    // Localized rules are ADDITIVE: English detection above is never altered,
+    // so there is zero English regression. When the locales module is absent
+    // the engine gracefully falls back to English-only behaviour.
+    // =========================================================================
+
+    var LOCALE = (window.__cloakerLocales && window.__cloakerLocales.merged) || null;
+
+    function _escRe(s) { return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+    function _alt(arr) {
+        // Longest-first so multi-word keywords win over their own prefixes.
+        return arr.slice().sort(function (a, b) { return b.length - a.length; })
+            .map(_escRe).join('|');
+    }
+
+    if (LOCALE) {
+        var _loc = [];
+
+        // ── Keyword-anchored localized IDs (highly specific) ─────────────
+        if (LOCALE.passport.length) {
+            _loc.push({ key: 'passport', label: 'PASSPORT', type: 'Passport Number',
+                regex: new RegExp('(?:' + _alt(LOCALE.passport) + ')(?:\\s*(?:no|number|num|n[ºo°]|#|号|番号))?[:\\s#：]*[A-Z]{0,2}\\d{6,9}', 'gi') });
+        }
+        if (LOCALE.dl.length) {
+            _loc.push({ key: 'driversLicense', label: 'DL', type: 'Drivers License',
+                regex: new RegExp('(?:' + _alt(LOCALE.dl) + ')(?:\\s*(?:no|number|num|n[ºo°]|#|号|番号))?[:\\s#：]*[A-Z0-9\\-]{5,15}', 'gi') });
+        }
+        if (LOCALE.medical.length) {
+            _loc.push({ key: 'medical', label: 'MRN', type: 'Medical Record Number',
+                regex: new RegExp('(?:' + _alt(LOCALE.medical) + ')(?:\\s*(?:no|number|num|n[ºo°]|#|号|番号))?[:\\s#：]*[A-Z0-9\\-]{4,15}', 'gi') });
+        }
+        if (LOCALE.bank.length) {
+            _loc.push({ key: 'bankAccount', label: 'BANK', type: 'Bank Account',
+                regex: new RegExp('(?:' + _alt(LOCALE.bank) + ')(?:\\s*(?:no|number|num|n[ºo°]|#|号|番号))?[:\\s#：]*\\d{8,17}', 'gi') });
+        }
+        if (LOCALE.credentials.length) {
+            _loc.push({ key: 'credentials', label: 'SECRET', type: 'Credential',
+                regex: new RegExp('(?:' + _alt(LOCALE.credentials) + ')[:\\s=：]*\\S{6,}', 'gi') });
+        }
+
+        // ── Localized dates ──────────────────────────────────────────────
+        if (LOCALE.months.length) {
+            var _M = _alt(LOCALE.months);
+            _loc.push({ key: 'dates', label: 'DOB', type: 'Date',
+                regex: new RegExp('\\b\\d{1,2}\\.?\\s+(?:de\\s+|d[\'’])?(?:' + _M + ')\\.?,?\\s+(?:de\\s+)?\\d{4}\\b|\\b(?:' + _M + ')\\.?\\s+\\d{1,2}(?:\\.|,)?\\s+\\d{4}\\b', 'gi') });
+        }
+        // CJK numeric dates: 1990年1月15日 / 1月15日
+        _loc.push({ key: 'dates', label: 'DOB', type: 'Date',
+            regex: /\d{4}\s*年\s*\d{1,2}\s*月\s*\d{1,2}\s*日|\d{1,2}\s*月\s*\d{1,2}\s*日/g });
+
+        // ── Localized addresses ──────────────────────────────────────────
+        // Latin prefix style (rue/calle/rua/...) — a street number is required
+        // (leading OR trailing) so ordinary prose is never mis-flagged.
+        if (LOCALE.addressPrefix.length) {
+            var _AP = _alt(LOCALE.addressPrefix);
+            var _conn = "(?:de\\s+la\\s+|de\\s+l'|de\\s+|du\\s+|des\\s+|del\\s+|de\\s+los\\s+|da\\s+|do\\s+|dos\\s+)?";
+            var _street = '[A-Za-zÀ-ÿ0-9\'’\\-]+(?:\\s+[A-Za-zÀ-ÿ0-9\'’\\-]+){0,2}';
+            _loc.push({ key: 'addresses', label: 'ADDR', type: 'Street Address',
+                regex: new RegExp(
+                    '\\b\\d{1,5}[,]?\\s+(?:' + _AP + ')\\.?\\s+' + _conn + _street +
+                    '|\\b(?:' + _AP + ')\\.?\\s+' + _conn + _street + ',?\\s+\\d{1,5}\\b', 'gi') });
+        }
+        // German glued-suffix style (Bahnhofstraße 5) — number required.
+        if (LOCALE.addressSuffix.length) {
+            _loc.push({ key: 'addresses', label: 'ADDR', type: 'Street Address',
+                regex: new RegExp('\\b[A-Za-zÄÖÜäöüß]{2,}(?:' + _alt(LOCALE.addressSuffix) + ')\\.?\\s+\\d{1,4}\\b', 'gi') });
+        }
+        // Cyrillic style (улица Ленина 5 / Ленина ул.) — number optional.
+        if (LOCALE.addressPrefixCyrillic.length) {
+            var _CA = _alt(LOCALE.addressPrefixCyrillic);
+            _loc.push({ key: 'addresses', label: 'ADDR', type: 'Street Address',
+                regex: new RegExp('(?:' + _CA + ')\\.?\\s+[А-ЯЁ][а-яё]+(?:,?\\s+\\d{1,4})?|[А-ЯЁ][а-яё]+\\s+(?:' + _CA + ')\\.?(?:,?\\s+\\d{1,4})?', 'g') });
+        }
+
+        // Insert localized rules just before the generic English patterns
+        // (phones/addresses/dates) so keyword-anchored IDs win over generic
+        // digit grabbing, while the distinctive English patterns
+        // (emails/url/credentials) still run first and behave identically.
+        var _genIdx = -1;
+        for (var _gi = 0; _gi < PATTERNS.length; _gi++) {
+            if (PATTERNS[_gi].key === 'phones') { _genIdx = _gi; break; }
+        }
+        if (_genIdx === -1) _genIdx = PATTERNS.length;
+        PATTERNS.splice.apply(PATTERNS, [_genIdx, 0].concat(_loc));
+    }
+
+    // =========================================================================
+    // redactLocaleNames(result, items) — multilingual person-name detection
+    // -------------------------------------------------------------------------
+    // Runs AFTER the English NLP/regex name pass on the already-processed text.
+    // Strategies are deliberately high-precision to avoid English regression:
+    //   • CJK   — honorific-suffixed, name-label-prefixed, surname-after-intro
+    //   • Cyril — capitalized sequences gated by known names / patronymics
+    //   • Latin — name-intro phrases, runs containing a known first name, and
+    //             standalone known first names
+    // Returns the updated result string; pushes NAME items as a side effect.
+    // =========================================================================
+
+    function redactLocaleNames(result, items) {
+        if (!LOCALE) return result;
+
+        function add(orig) {
+            C.redactionCounter++;
+            var ph = '[NAME_' + C.redactionCounter + ']';
+            C.redactionMap[ph] = { original: orig, type: 'Person Name' };
+            items.push({ type: 'Person Name', placeholder: ph });
+            return ph;
+        }
+        var CJK = '[\\u3040-\\u30ff\\u4e00-\\u9fff\\uff66-\\uff9f]';
+
+        // ── CJK: name immediately followed by an honorific ──────────────
+        if (LOCALE.honorifics.length) {
+            var reHon = new RegExp('(' + CJK + '{1,5})(' + _alt(LOCALE.honorifics) + ')', 'g');
+            result = result.replace(reHon, function (m, nm, h) { return add(nm) + h; });
+        }
+        // ── CJK: name preceded by a "name:" label (姓名：张伟 / 名前：田中) ─
+        if (LOCALE.nameLabels.length) {
+            var reLbl = new RegExp('((?:' + _alt(LOCALE.nameLabels) + ')[\\s:：]*)(' + CJK + '{2,5})', 'g');
+            result = result.replace(reLbl, function (m, pre, nm) { return pre + add(nm); });
+        }
+        // ── ZH/JP: surname-anchored name after an intro marker ──────────
+        if (LOCALE.surnames.length) {
+            var reIntro = new RegExp('(叫|我是|本人|姓|私は|僕は|名は)((?:' + _alt(LOCALE.surnames) + ')' + CJK + '{1,2})', 'g');
+            result = result.replace(reIntro, function (m, intro, nm) { return intro + add(nm); });
+        }
+
+        // ── Cyrillic ─────────────────────────────────────────────────────
+        var cyStop = {};
+        for (var s = 0; s < LOCALE.cyrillicStop.length; s++) cyStop[LOCALE.cyrillicStop[s]] = true;
+        var cyName = {};
+        for (var n = 0; n < LOCALE.cyrillicNames.length; n++) cyName[LOCALE.cyrillicNames[n]] = true;
+        var cySuffix = /(?:ович|евич|ьич|овна|евна|инична|ов|ев|ёв|ин|ын|ский|ская|цкий|цкая|енко|ук|юк|ян)$/;
+
+        // Intro-anchored Cyrillic (меня зовут Иван Петров)
+        if (LOCALE.cyrillicIntro.length) {
+            var reCyIntro = new RegExp('(?:' + _alt(LOCALE.cyrillicIntro) + ')\\s+([А-ЯЁа-яё]+(?:\\s+[А-ЯЁа-яё]+){0,2})', 'gi');
+            result = result.replace(reCyIntro, function (m, nm) {
+                if (/\[.+_\d+\]/.test(nm)) return m;
+                var parts = nm.split(/\s+/), keep = [];
+                for (var i = 0; i < parts.length; i++) {
+                    if (/^[А-ЯЁ]/.test(parts[i]) && !cyStop[parts[i]]) keep.push(parts[i]);
+                    else break;
+                }
+                if (!keep.length) return m;
+                var rebuilt = keep.join(' '), idx = m.indexOf(rebuilt);
+                return m.slice(0, idx) + add(rebuilt) + m.slice(idx + rebuilt.length);
+            });
+        }
+        // Capitalized Cyrillic sequences gated by a known name or patronymic
+        result = result.replace(/[А-ЯЁ][а-яё]+(?:\s+[А-ЯЁ][а-яё]+){1,2}/g, function (m) {
+            var parts = m.split(/\s+/);
+            while (parts.length && cyStop[parts[0]]) parts.shift();
+            while (parts.length && cyStop[parts[parts.length - 1]]) parts.pop();
+            if (parts.length < 1) return m;
+            var hit = false;
+            for (var i = 0; i < parts.length; i++) {
+                if (cyName[parts[i]] || cySuffix.test(parts[i])) { hit = true; break; }
+            }
+            if (!hit) return m;
+            var rebuilt = parts.join(' ');
+            return m.replace(rebuilt, function () { return add(rebuilt); });
+        });
+        // Standalone known Cyrillic first names
+        result = result.replace(/[А-ЯЁ][а-яё]+/g, function (m) {
+            return cyName[m] ? add(m) : m;
+        });
+
+        // ── Latin (non-English) ──────────────────────────────────────────
+        var laName = {};
+        for (var ln = 0; ln < LOCALE.commonNames.length; ln++) laName[LOCALE.commonNames[ln]] = true;
+        var laStop = {};
+        for (var lt = 0; lt < LOCALE.stopWords.length; lt++) laStop[LOCALE.stopWords[lt]] = true;
+        var CAP = "[A-ZÀ-ÖØ-Þ][A-Za-zÀ-ÿ'’\\-]*";
+
+        function isStop(w) {
+            return laStop[w] || COMMON_WORDS.has(w) || COMMON_WORDS.has(w.toLowerCase());
+        }
+
+        // Intro-anchored Latin (Je m'appelle Jean Dupont / Herr Müller)
+        if (LOCALE.nameIntro.length) {
+            var reLaIntro = new RegExp('(?:' + _alt(LOCALE.nameIntro) + ')\\s+([A-Za-zÀ-ÿ\'’\\-]+(?:\\s+[A-Za-zÀ-ÿ\'’\\-]+){0,2})', 'gi');
+            result = result.replace(reLaIntro, function (m, nm) {
+                if (/\[.+_\d+\]/.test(nm)) return m;
+                var parts = nm.split(/\s+/), keep = [];
+                for (var i = 0; i < parts.length; i++) {
+                    if (/^[A-ZÀ-ÖØ-Þ]/.test(parts[i]) && !isStop(parts[i])) keep.push(parts[i]);
+                    else break;
+                }
+                if (!keep.length) return m;
+                var rebuilt = keep.join(' '), idx = m.indexOf(rebuilt);
+                return m.slice(0, idx) + add(rebuilt) + m.slice(idx + rebuilt.length);
+            });
+        }
+        // Capitalized Latin runs that contain a known localized first name
+        result = result.replace(new RegExp(CAP + '(?:\\s+' + CAP + '){1,2}', 'g'), function (m) {
+            if (/\[.+_\d+\]/.test(m)) return m;
+            var parts = m.split(/\s+/);
+            var known = false;
+            for (var i = 0; i < parts.length; i++) { if (laName[parts[i]]) { known = true; break; } }
+            if (!known) return m;
+            while (parts.length && isStop(parts[0]) && !laName[parts[0]]) parts.shift();
+            while (parts.length && isStop(parts[parts.length - 1]) && !laName[parts[parts.length - 1]]) parts.pop();
+            if (parts.length < 1) return m;
+            var rebuilt = parts.join(' ');
+            return m.replace(rebuilt, function () { return add(rebuilt); });
+        });
+        // Standalone known localized first names
+        if (LOCALE.commonNames.length) {
+            var reLaName = new RegExp('\\b(?:' + _alt(LOCALE.commonNames) + ')\\b', 'g');
+            result = result.replace(reLaName, function (m) { return add(m); });
+        }
+
+        return result;
+    }
+
+    // =========================================================================
     // generateHash() — Non-deterministic 6-char hex hash for custom words
     // =========================================================================
 
@@ -388,6 +605,9 @@
                     return placeholder;
                 });
             }
+
+            // ── Multilingual name detection (additive, non-English scripts) ──
+            result = redactLocaleNames(result, items);
         }
 
         // Custom word redaction — user-defined word→replacement pairs

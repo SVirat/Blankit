@@ -48,7 +48,13 @@ describe('manifest.json', () => {
   });
 
   test('has required name and version', () => {
-    expect(manifest.name).toBe('Blankit');
+    // Name/description are localized via _locales; the manifest references the
+    // default-locale message keys, and Chrome substitutes them per browser language.
+    expect(manifest.name).toBe('__MSG_appName__');
+    expect(manifest.description).toBe('__MSG_appDescription__');
+    expect(manifest.default_locale).toBe('en');
+    const enMessages = require('../_locales/en/messages.json');
+    expect(enMessages.appName.message).toBe('Blankit - Privacy Protector for AI Chats');
     expect(manifest.version).toMatch(/^\d+\.\d+\.\d+$/);
   });
 

@@ -15,6 +15,39 @@
     const btnCloseAudit = document.getElementById('btn-close-audit');
 
     // =========================================================================
+    // i18n — localize static + dynamic UI strings.
+    // Chrome auto-selects the locale from the browser language via _locales;
+    // t() falls back to the supplied English string when a message is missing,
+    // so the popup degrades gracefully and English is never regressed.
+    // =========================================================================
+
+    function t(key, fallback, subs) {
+        try {
+            var m = chrome.i18n.getMessage(key, subs);
+            return m || (fallback != null ? fallback : key);
+        } catch (e) {
+            return fallback != null ? fallback : key;
+        }
+    }
+
+    function localizeStatic() {
+        document.title = t('appShortName', document.title);
+        document.querySelectorAll('[data-i18n]').forEach(function (el) {
+            var m = t(el.getAttribute('data-i18n'), el.textContent);
+            if (m) el.textContent = m;
+        });
+        document.querySelectorAll('[data-i18n-title]').forEach(function (el) {
+            var m = t(el.getAttribute('data-i18n-title'), el.getAttribute('title'));
+            if (m) el.setAttribute('title', m);
+        });
+        document.querySelectorAll('[data-i18n-placeholder]').forEach(function (el) {
+            var m = t(el.getAttribute('data-i18n-placeholder'), el.getAttribute('placeholder'));
+            if (m) el.setAttribute('placeholder', m);
+        });
+    }
+    localizeStatic();
+
+    // =========================================================================
     // Load current state
     // =========================================================================
 
@@ -181,7 +214,7 @@
 
                 var wordInput = document.createElement('input');
                 wordInput.type = 'text';
-                wordInput.placeholder = 'Word or pattern to redact';
+                wordInput.placeholder = t('wordPlaceholder', 'Word or pattern to redact');
                 wordInput.value = _customWords[idx].word || '';
                 wordInput.addEventListener('input', function () {
                     var trimmed = wordInput.value.trim();
@@ -200,11 +233,11 @@
                 var hashLabel = document.createElement('span');
                 hashLabel.className = 'cw-hash';
                 hashLabel.textContent = _customWords[idx].hash || '';
-                hashLabel.title = 'Auto-generated redaction ID';
+                hashLabel.title = t('hashTitle', 'Auto-generated redaction ID');
 
                 var btnDel = document.createElement('button');
                 btnDel.className = 'btn-remove-word';
-                btnDel.title = 'Remove';
+                btnDel.title = t('removeTitle', 'Remove');
                 btnDel.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>';
                 btnDel.addEventListener('click', function () {
                     _customWords.splice(idx, 1);
@@ -227,7 +260,7 @@
         saveCustomWords();
         renderCustomWords();
         // Focus the new word input
-        var inputs = customWordsList.querySelectorAll('input[placeholder="Word to redact"]');
+        var inputs = customWordsList.querySelectorAll('input[type="text"]');
         if (inputs.length > 0) inputs[inputs.length - 1].focus();
     });
 
@@ -262,7 +295,7 @@
     btnShareWords.addEventListener('click', function () {
         var wordsToExport = _customWords.filter(function (w) { return w.word; });
         if (wordsToExport.length === 0) {
-            showToast('Add some custom words first.', 'error');
+            showToast(t('addWordsFirst', 'Add some custom words first.'), 'error');
             return;
         }
         var exportData = {
@@ -280,7 +313,7 @@
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        showToast('Redaction set exported! Share the file with your team.', 'success');
+        showToast(t('exportSuccess', 'Redaction set exported! Share the file with your team.'), 'success');
     });
 
     btnImportWords.addEventListener('click', function () {
@@ -295,7 +328,7 @@
             try {
                 var data = JSON.parse(e.target.result);
                 if (data.format !== 'blankit-custom-words' || !Array.isArray(data.words)) {
-                    showToast('Invalid file. Must be a Blankit redaction set.', 'error');
+                    showToast(t('invalidFile', 'Invalid file. Must be a Blankit redaction set.'), 'error');
                     return;
                 }
                 var imported = 0;
@@ -314,12 +347,12 @@
                 saveCustomWords();
                 renderCustomWords();
                 if (imported > 0) {
-                    showToast(imported + ' word' + (imported > 1 ? 's' : '') + ' imported successfully!', 'success');
+                    showToast(imported + ' ' + (imported > 1 ? t('wordsImportedPlural', 'words imported successfully!') : t('wordImportedSingular', 'word imported successfully!')), 'success');
                 } else {
-                    showToast('All words already exist. Nothing new to import.', 'info');
+                    showToast(t('allExist', 'All words already exist. Nothing new to import.'), 'info');
                 }
             } catch (err) {
-                showToast('Could not read file. Check the format.', 'error');
+                showToast(t('readError', 'Could not read file. Check the format.'), 'error');
             }
         };
         reader.readAsText(file);
@@ -337,8 +370,8 @@
             var shareText = '';
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(shareText + '' + shareUrl).then(function () {
-                    btnShareExt.textContent = 'Copied!';
-                    setTimeout(function () { btnShareExt.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg> Share'; }, 2000);
+                    btnShareExt.textContent = t('copied', 'Copied!');
+                    setTimeout(function () { btnShareExt.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg> ' + t('shareBtn', 'Share'); }, 2000);
                 });
             }
         });
@@ -358,7 +391,7 @@
     function loadAuditLogs() {
         chrome.runtime.sendMessage({ type: 'GET_AUDIT_LOGS' }, function (res) {
             if (!res || !res.logs || res.logs.length === 0) {
-                auditEntries.innerHTML = '<div class="audit-empty">No redaction events logged yet.</div>';
+                auditEntries.innerHTML = '<div class="audit-empty">' + escapeHtml(t('auditEmpty', 'No redaction events logged yet.')) + '</div>';
                 return;
             }
             var html = '';
@@ -374,7 +407,7 @@
                 html += '<span class="audit-platform">' + escapeHtml(log.platform) + '</span>';
                 html += '</div>';
                 html += '<div class="audit-entry-body">';
-                html += '<span class="audit-count">' + log.itemCount + ' item' + (log.itemCount !== 1 ? 's' : '') + '</span>';
+                html += '<span class="audit-count">' + log.itemCount + ' ' + escapeHtml(log.itemCount !== 1 ? t('itemsPlural', 'items') : t('itemSingular', 'item')) + '</span>';
                 html += '<span class="audit-source">' + escapeHtml(log.source) + '</span>';
                 if (log.documentName) {
                     html += '<span class="audit-doc">' + escapeHtml(log.documentName) + '</span>';
@@ -388,7 +421,7 @@
                 html += '</div>';
             }
             if (logs.length > 50) {
-                html += '<div class="audit-more">Showing 50 of ' + logs.length + '. Export for full log.</div>';
+                html += '<div class="audit-more">' + escapeHtml(t('auditMore1', 'Showing 50 of ')) + logs.length + escapeHtml(t('auditMore2', '. Export for full log.')) + '</div>';
             }
             auditEntries.innerHTML = html;
         });
@@ -409,7 +442,7 @@
 
     btnClearAudit.addEventListener('click', function () {
         chrome.runtime.sendMessage({ type: 'CLEAR_AUDIT_LOGS' }, function () {
-            auditEntries.innerHTML = '<div class="audit-empty">No redaction events logged yet.</div>';
+            auditEntries.innerHTML = '<div class="audit-empty">' + escapeHtml(t('auditEmpty', 'No redaction events logged yet.')) + '</div>';
         });
     });
 

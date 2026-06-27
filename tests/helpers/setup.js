@@ -35,6 +35,7 @@ function loadSource(relPath) {
  */
 function loadPiiEngine() {
   loadSource('lib/compromise.min.js');
+  loadSource('src/core/locales.js');
   loadSource('src/core/pii-engine.js');
   return window.__cloaker;
 }

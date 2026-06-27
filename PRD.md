@@ -1,7 +1,7 @@
 # Blankit <img width="30" height="30" alt="icon48" src="https://github.com/user-attachments/assets/5e77145a-1ca4-49de-8ddf-54accbd1916d" /> : Product Requirements Document (PRD)
 
-**Version:** 1.0.4  
-**Last Updated:** April 16, 2026  
+**Version:** 1.0.6  
+**Last Updated:** June 27, 2026  
 **Status:** 🟢 [Live](https://chromewebstore.google.com/detail/crossout/oihdkggpbopimdndhephiechoegagoeb)<br>
 **Platform:** Google Chrome Extension 
 
@@ -25,6 +25,7 @@
    - 7.7 [In-Page Visual Indicators](#77-in-page-visual-indicators)
    - 7.8 [Audit Log](#78-audit-log)
    - 7.9 [Settings & Persistence](#79-settings--persistence)
+   - 7.10 [Multi-Language Detection & Localization](#710-multi-language-detection--localization)
 8. [Detailed Detection Categories](#8-detailed-detection-categories)
 9. [Document Format Support](#9-document-format-support)
 10. [Communication Architecture](#10-communication-architecture)
@@ -50,6 +51,8 @@
 - **Audit log** with full redaction event history, exportable as JSON
 - **Scrub bubble** with instant download of cleaned documents
 - **Per-platform file upload interception** (ChatGPT via DOM events, Claude via Blob/FileReader prototypes)
+- **Multi-language PII/PHI detection** across 8 languages (English, French, German, Spanish, Portuguese, Russian, Japanese, Chinese) with automatic, graceful fallback to English
+- **Localized popup UI** — interface strings are translated via Chrome's `_locales` i18n system and auto-selected from the browser language
 - **Freemium monetization** has been removed — all features including document redaction are now completely free and unlimited
 - **Zero network calls** — all processing is 100% local
 
@@ -170,7 +173,7 @@ Cloaker uses Chrome's Manifest V3 content script worlds to achieve both network-
 
 | World | Script(s) | Run At | Purpose |
 |-------|-----------|--------|---------|
-| **MAIN** | `jszip-pre.js`, `jszip.min.js`, `jszip-post.js`, `compromise.min.js`, `pii-engine.js`, `doc-handlers.js`, `*/selectors.js`, `network-base.js`, `*/interceptor.js` | `document_start` | Runs in the page's own JavaScript context. Can monkey-patch `window.fetch` and `XMLHttpRequest.prototype` before any page code loads. Has direct access to all native browser APIs as the page sees them. |
+| **MAIN** | `jszip-pre.js`, `jszip.min.js`, `jszip-post.js`, `compromise.min.js`, `locales.js`, `pii-engine.js`, `doc-handlers.js`, `*/selectors.js`, `network-base.js`, `*/interceptor.js` | `document_start` | Runs in the page's own JavaScript context. Can monkey-patch `window.fetch` and `XMLHttpRequest.prototype` before any page code loads. Has direct access to all native browser APIs as the page sees them. |
 | **ISOLATED** | `bridge.js`, `styles.css` | `document_idle` | Runs in Chrome's isolated content script world. Has access to `chrome.storage`, `chrome.runtime`, and other extension APIs. Cannot directly access `window.fetch` or page JS objects. Manages UI overlays (banner, badge, un-redact toggle, scrub bubble) and bridges settings to the MAIN world via `window.postMessage`. |
 
 #### JSZip Isolation Wrappers
@@ -661,7 +664,7 @@ Every redaction creates a mapping entry stored in `redactionMap`:
 
 **Location:** `popup.html`, `popup.css`, `popup.js`
 
-A 340px-wide dark-themed popup accessible via the extension toolbar icon.
+A 340px-wide dark-themed popup accessible via the extension toolbar icon. All visible strings are localized via Chrome's `_locales` i18n system and auto-selected from the browser language, with graceful fallback to English (see [Section 7.10.2](#7102-localized-popup-ui-chrome-i18n)).
 
 #### 7.6.1 Layout Sections
 
@@ -901,6 +904,34 @@ Every redaction event (text or document) is logged with:
 
 ---
 
+### 7.10 Multi-Language Detection & Localization
+
+Blankit provides two distinct but complementary multi-language capabilities: **localized PII/PHI detection** (the engine understands sensitive data written in 8 languages) and a **localized popup UI** (the interface itself is translated). Both are designed for **automatic, zero-configuration** operation with graceful fallback to English, and neither regresses existing English behavior.
+
+**Supported languages (8):** English, French, German, Spanish, Portuguese, Russian, Japanese, Chinese.
+
+#### 7.10.1 Multi-Language PII/PHI Detection
+
+**Location:** `src/core/locales.js` — module `window.__cloakerLocales`; consumed by `src/core/pii-engine.js`
+
+- **Locale data module:** `locales.js` exposes a `DATA` dictionary keyed by language code. `build(langs)` merges the selected languages into a single `merged` structure consumed by the engine. The English entry is intentionally empty (`{}`) — English is handled entirely by the base `PATTERNS` array, guaranteeing no regression.
+- **Automatic activation:** By default **all supported languages are merged and active simultaneously**, with the browser UI language (via `chrome.i18n.getUILanguage()`) prioritized first. A user therefore gets detection for every supported language at once, plus the right language preference ordering — with no setup.
+- **Per-language data** includes: localized month names (for dates), street-address prefixes/suffixes (including German glued suffixes such as `-straße` and Cyrillic forms like `улица`), keyword anchors for passport / driver's license / medical record / bank / credential patterns, name-introduction phrases (`je m'appelle`, `меня зовут`, `私は…と申します`, `我叫`), common given names, CJK surnames, honorifics (`さん` / `様`, `先生` / `女士`), and stop-words to suppress false positives.
+- **Engine integration:** `pii-engine.js` reads `LOCALE = window.__cloakerLocales.merged` and **compiles localized regex patterns once at load**. They are spliced into the `PATTERNS` array at the `phones` index — after the distinctive English patterns but before the generic ones — so specificity ordering is preserved. A dedicated `redactLocaleNames()` pass then handles script-specific person-name detection: CJK honorific-suffixed and label-prefixed names, Cyrillic intro-anchored and patronymic-gated names, and Latin intro-anchored / known-name detection.
+- **Unified categories:** Localized matches map to the **same 17 categories and placeholder tokens** (`[NAME_N]`, `[DOB_N]`, `[PASSPORT_N]`, etc.), so the redaction map, audit log, and un-redact toggle behave identically regardless of language.
+- **Performance:** Localized regexes are built only once at module load (not per call); `redactString()`'s scrub cache amortizes repeated payloads to near-zero; and the non-Latin name passes early-skip on pure-English text. Net per-call overhead is a small, fixed constant.
+
+#### 7.10.2 Localized Popup UI (Chrome i18n)
+
+**Location:** `_locales/<lang>/messages.json` (en, fr, de, es, pt, ru, ja, zh) + `manifest.json` `"default_locale": "en"`
+
+- **Automatic locale selection:** Chrome selects the message catalog matching the browser UI language at runtime. Missing locales or individual missing keys fall back to English (the `default_locale`) — **no user action required**.
+- **Static strings:** `popup.html` annotates UI elements with `data-i18n`, `data-i18n-title`, and `data-i18n-placeholder` attributes. On load, `popup.js` runs `localizeStatic()`, which applies `chrome.i18n.getMessage(key)` for each annotated element, using the inline English text as a graceful fallback.
+- **Dynamic strings:** Runtime strings (toasts, audit-log labels such as `item`/`items`, input placeholders, `Copied!`) are localized through a small `t(key, fallback)` helper that wraps `chrome.i18n.getMessage` and always degrades to the English fallback on a missing key.
+- **Store metadata:** The extension name, description, and action title are localized through the same `_locales` catalogs (`appName`, `appDescription`, `popupTitle`, `toggleProtection`).
+
+---
+
 ## 8. Detailed Detection Categories
 
 ### 8.1 Email Addresses
@@ -961,6 +992,7 @@ Every redaction event (text or document) is logged with:
 | **Placeholder** | `[NAME_N]` |
 | **Examples detected** | `John Smith`, `Maria Garcia`, `Priya Sharma`, `Jean-Pierre Dupont`, `Dr. Robert Johnson`, `Wei Chen` |
 | **Common names set** | Top 20 Western (James, Robert, Mary, Elizabeth, …) + Top 20 Indian (Aarav, Vivaan, Priya, Raj, …) — always caught even standalone |
+| **Multi-language** | Localized person-name detection for French, German, Spanish, Portuguese, Russian, Japanese, and Chinese — including CJK honorific/label-based names, Cyrillic patronymic-gated names, and intro-phrase anchors. See [Section 7.10](#710-multi-language-detection--localization). |
 | **False positive prevention** | ~130+ common English words excluded (articles, pronouns, days, months, verbs, prepositions) |
 
 ### 8.7 Dates
@@ -1377,6 +1409,15 @@ All libraries are bundled locally in the extension package. No CDN or remote loa
 ```
 Blankit/
 ├── manifest.json
+├── _locales/                    # Chrome i18n message catalogs (auto-selected by browser language)
+│   ├── en/messages.json         # Source of truth / fallback (default_locale)
+│   ├── fr/messages.json
+│   ├── de/messages.json
+│   ├── es/messages.json
+│   ├── pt/messages.json
+│   ├── ru/messages.json
+│   ├── ja/messages.json
+│   └── zh/messages.json
 ├── lib/
 │   ├── jszip.min.js             # Local vendor library
 │   ├── jszip-pre.js             # Saves window.postMessage
@@ -1386,6 +1427,7 @@ Blankit/
 ├── src/
 │   ├── core/                    # Shared Pure Logic
 │   │   ├── pii-engine.js        # Regex patterns and redaction logic
+│   │   ├── locales.js           # Multi-language PII detection data (8 languages)
 │   │   ├── doc-handlers.js      # OOXML and Text file parsers
 │   │   └── network-base.js      # Global Fetch/XHR monkey-patching
 │   ├── platforms/               # Isolated Platform Strategies
