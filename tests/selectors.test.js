@@ -79,6 +79,40 @@ describe('Gemini selectors', () => {
   });
 });
 
+// ─── Grok Selectors ─────────────────────────────────────────────────────────
+
+describe('Grok selectors', () => {
+  beforeEach(() => {
+    resetCloaker();
+    loadSource('src/platforms/grok/selectors.js');
+  });
+
+  test('registers the live Ask Grok textarea', () => {
+    expect(C.inputSelectors).toContain('textarea[aria-label="Ask Grok anything"]');
+  });
+
+  test('registers the live chat submit button', () => {
+    expect(C.sendButtonSelectors).toContain('button[data-testid="chat-submit"]');
+  });
+});
+
+// ─── Perplexity Selectors ────────────────────────────────────────────────────
+
+describe('Perplexity selectors', () => {
+  beforeEach(() => {
+    resetCloaker();
+    loadSource('src/platforms/perplexity/selectors.js');
+  });
+
+  test('registers the live Lexical ask input', () => {
+    expect(C.inputSelectors).toContain('#ask-input[contenteditable="true"]');
+  });
+
+  test('registers the live submit button', () => {
+    expect(C.sendButtonSelectors).toContain('button[aria-label="Submit"]');
+  });
+});
+
 // ─── Combined Platform Selectors ────────────────────────────────────────────
 
 describe('All platforms combined', () => {
@@ -87,12 +121,13 @@ describe('All platforms combined', () => {
     loadSource('src/platforms/chatgpt/selectors.js');
     loadSource('src/platforms/claude/selectors.js');
     loadSource('src/platforms/gemini/selectors.js');
+    loadSource('src/platforms/grok/selectors.js');
+    loadSource('src/platforms/perplexity/selectors.js');
   });
 
-  test('all three platforms add their selectors', () => {
-    // ChatGPT + Claude + Gemini + generic fallbacks
-    expect(C.inputSelectors.length).toBeGreaterThanOrEqual(6);
-    expect(C.sendButtonSelectors.length).toBeGreaterThanOrEqual(3);
+  test('all five platforms add their selectors', () => {
+    expect(C.inputSelectors.length).toBeGreaterThanOrEqual(10);
+    expect(C.sendButtonSelectors.length).toBeGreaterThanOrEqual(5);
   });
 
   test('no duplicate selectors', () => {

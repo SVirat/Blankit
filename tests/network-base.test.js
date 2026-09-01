@@ -26,7 +26,9 @@ beforeAll(() => {
     /\/api\/append_message/,
     /\/api\/organizations\/.+\/chat_conversations\/.+\/completion/,
     /\/api\/generate/,
-    /BatchExecute/
+    /BatchExecute/,
+    /\/rest\/app-chat\//,
+    /\/rest\/sse\/perplexity_ask/
   ];
 
   shouldRedactUrl = function (url) {
@@ -58,7 +60,9 @@ beforeAll(() => {
       var h = parsed.hostname;
       if (/\.(googleapis|google|gstatic|googleusercontent)\.com$/.test(h)) return true;
       if (/\.(openai|anthropic)\.com$/.test(h)) return true;
-      if (h === 'chatgpt.com' || h === 'claude.ai') return true;
+      if (h === 'chatgpt.com' || h === 'claude.ai' || h === 'grok.com' || h.endsWith('.grok.com')) return true;
+      if (h === 'x.ai' || h.endsWith('.x.ai')) return true;
+      if (h === 'perplexity.ai' || h.endsWith('.perplexity.ai')) return true;
       return false;
     } catch (e) {
       return true;
@@ -99,6 +103,15 @@ describe('shouldRedactUrl', () => {
 
   test('matches Gemini BatchExecute', () => {
     expect(shouldRedactUrl('https://gemini.google.com/_/BardChatUi/data/assistant.lamda.BardFrontendService/StreamGenerate?batchjs=BatchExecute')).toBe(true);
+  });
+
+  test('matches Grok app-chat conversation routes', () => {
+    expect(shouldRedactUrl('https://grok.com/rest/app-chat/conversations/new')).toBe(true);
+    expect(shouldRedactUrl('/rest/app-chat/conversations/abc/responses')).toBe(true);
+  });
+
+  test('matches Perplexity ask route', () => {
+    expect(shouldRedactUrl('https://www.perplexity.ai/rest/sse/perplexity_ask')).toBe(true);
   });
 
   test('does not match random URL', () => {
@@ -161,6 +174,17 @@ describe('isLLMTraffic', () => {
 
   test('identifies anthropic.com as LLM traffic', () => {
     expect(isLLMTraffic('https://api.anthropic.com/v1/messages')).toBe(true);
+  });
+
+  test('identifies Grok and X.AI traffic', () => {
+    expect(isLLMTraffic('https://grok.com/rest/app-chat/conversations/new')).toBe(true);
+    expect(isLLMTraffic('https://uploads.grok.com/files/abc')).toBe(true);
+    expect(isLLMTraffic('https://api.x.ai/v1/chat/completions')).toBe(true);
+  });
+
+  test('identifies Perplexity traffic', () => {
+    expect(isLLMTraffic('https://www.perplexity.ai/rest/sse/perplexity_ask')).toBe(true);
+    expect(isLLMTraffic('https://uploads.perplexity.ai/files/abc')).toBe(true);
   });
 
   test('identifies googleapis.com as LLM traffic', () => {

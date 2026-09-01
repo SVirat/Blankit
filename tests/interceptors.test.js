@@ -1,17 +1,18 @@
 /**
  * tests/interceptors.test.js
- * Tests for drag-and-drop vs file-upload flows across all 3 platform interceptors.
+ * Tests for drag-and-drop vs file-upload flows across all platform interceptors.
  *
  * Each platform has a different interception strategy:
  *   ChatGPT: DOM event interception (change + drop events, synthetic re-dispatch)
  *   Claude:  Blob/FileReader prototype overrides + fetch/XHR body interception (no DOM events)
  *   Gemini:  change event for uploads, drop event warms cache, XHR/fetch swaps + Blob overrides
+ *   Grok:    DOM event interception with shared FormData/File network fallback
  *
  * Since interceptors are IIFEs guarded by hostname checks, we can't eval them directly.
  * Instead we extract and test the shared logic patterns: cleanability checks, cleaning
  * dispatch, and the behavioral contracts each platform relies on.
  */
-const { loadPiiEngine, loadSource, resetCloaker } = require('./helpers/setup');
+const { loadPiiEngine, loadSource, resetCloaker, readSource } = require('./helpers/setup');
 
 let C;
 
@@ -22,6 +23,7 @@ beforeAll(() => {
   loadSource('src/platforms/chatgpt/selectors.js');
   loadSource('src/platforms/claude/selectors.js');
   loadSource('src/platforms/gemini/selectors.js');
+  loadSource('src/platforms/grok/selectors.js');
 });
 
 beforeEach(() => {
@@ -31,7 +33,7 @@ beforeEach(() => {
 });
 
 // ─── Shared: File Cleanability Detection ────────────────────────────────────
-// All 3 interceptors use the same core check: extension + isOoxmlFile/isPdfFile/isTextFile
+// All interceptors use the same core check: extension + isOoxmlFile/isPdfFile/isTextFile
 
 const CLEANABLE_EXTENSIONS = /\.(docx|xlsx|pptx|txt|csv|tsv|json|xml|md|log|html|htm|yaml|yml|ini|cfg|conf|rtf|pdf)$/i;
 
@@ -86,7 +88,7 @@ describe('Shared — File cleanability detection', () => {
 });
 
 // ─── Shared: Clean File Dispatch Logic ──────────────────────────────────────
-// All 3 platforms dispatch to the same C.redactOoxmlFile / C.redactPdfFile / C.redactTextFile
+// All platforms dispatch to the same C.redactOoxmlFile / C.redactPdfFile / C.redactTextFile
 
 describe('Shared — Clean file dispatch', () => {
   test('redactTextFile returns same file when no PII', async () => {
@@ -104,6 +106,32 @@ describe('Shared — Clean file dispatch', () => {
     expect(C.isOoxmlFile(new File(['x'], 'doc.pdf'))).toBe(false);
     expect(C.isPdfFile(new File(['x'], 'doc.docx'))).toBe(false);
     expect(C.isTextFile(new File(['x'], 'doc.docx'))).toBe(false);
+  });
+});
+
+describe('Grok — Upload interception contract', () => {
+  const source = readSource('src/platforms/grok/interceptor.js');
+
+  test('is isolated to grok.com and handles upload plus drag-and-drop', () => {
+    expect(source).toContain("host !== 'grok.com'");
+    expect(source).toContain("document.addEventListener('change'");
+    expect(source).toContain("document.addEventListener('drop'");
+    expect(source).toContain('new DataTransfer()');
+    expect(source).toContain('_cloakerBypass');
+  });
+
+  test.each([
+    'redactOoxmlFile',
+    'redactPdfFile',
+    'redactTextFile'
+  ])('dispatches through %s', (dispatcher) => {
+    expect(source).toContain('C.' + dispatcher + '(file)');
+  });
+
+  test('recognizes every supported file extension family', () => {
+    for (const extension of ['docx', 'xlsx', 'pptx', 'txt', 'csv', 'json', 'md', 'pdf']) {
+      expect(source).toContain(extension);
+    }
   });
 });
 
@@ -604,7 +632,7 @@ describe('Regression — Interceptor guards', () => {
   });
 
   test('already-cleaned files are tracked to prevent double-cleaning', () => {
-    // All 3 platforms use WeakSet/WeakMap to avoid re-processing cleaned output
+    // Platform interceptors use WeakSet/WeakMap to avoid re-processing cleaned output
     const cleaned = new WeakSet();
     const original = new File(['pii'], 'data.txt');
     const redacted = new File(['[EMAIL_1]'], 'data.txt');

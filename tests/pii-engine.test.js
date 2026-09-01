@@ -881,11 +881,68 @@ describe('redactString — Credentials', () => {
     expect(items.some(i => i.type === 'Credential')).toBe(true);
   });
 
+  test.each([
+    ['OpenAI', 'sk-proj-abcdefghijklmnopqrstuvwxyz1234567890'],
+    ['Anthropic', 'sk-ant-api03-abcdefghijklmnopqrstuvwxyz1234567890'],
+    ['GitHub classic', 'ghp_abcdefghijklmnopqrstuvwxyz1234567890'],
+    ['GitHub fine-grained', 'github_pat_abcdefghijklmnopqrstuvwxyz_1234567890'],
+    ['Google', 'AIzaSyABCDEFGHIJKLMNOPQRSTUVWXYZ123456789'],
+    ['AWS', 'AKIAABCDEFGHIJKLMNOP'],
+    ['Stripe', 'sk_live_abcdefghijklmnopqrstuvwxyz'],
+    ['Slack', 'xoxb-123456789012-123456789012-abcdefghijklmnopqrstuvwx']
+  ])('detects standalone %s API key', (provider, secret) => {
+    const { result, items } = C.redactString('Use ' + secret + ' for the request');
+    expect(items.some(i => i.type === 'Credential')).toBe(true);
+    expect(result).not.toContain(secret);
+  });
+
   test('does not redact when credentials category is disabled', () => {
     C.categories.credentials = false;
     const { items } = C.redactString('password: SuperSecret123!');
     const credItems = items.filter(i => i.type === 'Credential');
     expect(credItems).toHaveLength(0);
+  });
+});
+
+describe('deepRedactObj — Credential fields', () => {
+  test('redacts secrets using parsed JSON property names', () => {
+    const payload = {
+      api_key: 'unprefixed-secret-value-12345',
+      client_secret: 'client-secret-value-67890',
+      accessToken: 'access-token-value-24680',
+      headers: {
+        'x-api-key': 'another-unprefixed-value-12345',
+        authorization: 'Basic dXNlcjpwYXNzd29yZA=='
+      }
+    };
+
+    const { result, items } = C.deepRedactObj(payload);
+    expect(result.api_key).toMatch(/^\[SECRET_\d+\]$/);
+    expect(result.client_secret).toMatch(/^\[SECRET_\d+\]$/);
+    expect(result.accessToken).toMatch(/^\[SECRET_\d+\]$/);
+    expect(result.headers['x-api-key']).toMatch(/^\[SECRET_\d+\]$/);
+    expect(result.headers.authorization).toMatch(/^\[SECRET_\d+\]$/);
+    expect(items.filter(i => i.type === 'Credential')).toHaveLength(5);
+    expect(Object.values(C.redactionMap).map(entry => entry.original)).toEqual(
+      expect.arrayContaining([
+        payload.api_key,
+        payload.client_secret,
+        payload.accessToken,
+        payload.headers['x-api-key'],
+        payload.headers.authorization
+      ])
+    );
+  });
+
+  test('does not use an ordinary JSON property as credential context', () => {
+    const payload = { description: 'unprefixed-secret-value-12345' };
+    expect(C.deepRedactObj(payload).result).toEqual(payload);
+  });
+
+  test('respects the credentials category for parsed fields', () => {
+    C.categories.credentials = false;
+    const payload = { api_key: 'unprefixed-secret-value-12345' };
+    expect(C.deepRedactObj(payload).result).toEqual(payload);
   });
 });
 

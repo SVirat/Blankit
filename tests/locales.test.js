@@ -2,9 +2,9 @@
  * tests/locales.test.js
  * Multi-language PII detection tests for src/core/locales.js + src/core/pii-engine.js
  *
- * Covers Japanese, French, Russian, Portuguese, Spanish, German and Chinese
- * detection of names, dates, addresses, labeled IDs and credentials, plus
- * graceful-fallback and English no-regression guarantees.
+ * Covers Japanese, French, Russian, Portuguese, Spanish, German, Chinese,
+ * Indian, Italian and Korean detection of geographic PII and localized names,
+ * plus graceful fallback and English no-regression guarantees.
  */
 const { loadPiiEngine, resetCloaker } = require('./helpers/setup');
 const fs = require('fs');
@@ -34,7 +34,7 @@ describe('locales module', () => {
   test('exposes the supported language set', () => {
     expect(window.__cloakerLocales).toBeDefined();
     expect(window.__cloakerLocales.SUPPORTED).toEqual(
-      expect.arrayContaining(['en', 'fr', 'de', 'es', 'pt', 'ru', 'ja', 'zh'])
+      expect.arrayContaining(['en', 'fr', 'de', 'es', 'pt', 'ru', 'ja', 'zh', 'hi', 'it', 'ko'])
     );
   });
 
@@ -48,6 +48,140 @@ describe('locales module', () => {
   test('build() skips unknown languages gracefully', () => {
     const m = window.__cloakerLocales.build(['xx', 'fr']);
     expect(m.months).toEqual(expect.arrayContaining(['mars']));
+  });
+});
+
+// ─── Country-specific structured PII (names deliberately excluded) ─────────
+
+describe('Country-specific geographic PII', () => {
+  const cases = [
+    ['United States address', 'Ship to 123 Main St, Springfield, IL 62704', 'Street Address', ['123 Main St', 'Springfield', '62704']],
+    ['United States phone', 'Phone: (415) 555-0198', 'Phone Number', ['(415) 555-0198']],
+    ['United States SSN', 'SSN: 123-45-6789', 'SSN', ['123-45-6789']],
+
+    ['France address', 'Adresse: 12 rue de la Paix, 75002 Paris', 'Street Address', ['12 rue de la Paix', '75002', 'Paris']],
+    ['France phone', 'Téléphone : 06 12 34 56 78', 'Phone Number', ['06 12 34 56 78']],
+    ['France NIR', 'NIR : 1 85 05 78 006 084 36', 'National ID', ['1 85 05 78 006 084 36']],
+
+    ['Germany address', 'Adresse: Bahnhofstraße 5, 10115 Berlin', 'Street Address', ['Bahnhofstraße 5', '10115', 'Berlin']],
+    ['Germany phone', 'Telefon: 030 12345678', 'Phone Number', ['030 12345678']],
+    ['Germany tax ID', 'Steuer-ID: 12 345 678 901', 'Tax ID', ['12 345 678 901']],
+
+    ['Spain address', 'Dirección: Calle Mayor 5, 28013 Madrid', 'Street Address', ['Calle Mayor 5', '28013', 'Madrid']],
+    ['Spain phone', 'Teléfono: 612 345 678', 'Phone Number', ['612 345 678']],
+    ['Spain DNI', 'DNI: 12345678Z', 'National ID', ['12345678Z']],
+    ['Spain NIE', 'NIE: X1234567L', 'National ID', ['X1234567L']],
+
+    ['Portugal address', 'Morada: Rua Augusta 100, 1100-053 Lisboa', 'Street Address', ['Rua Augusta 100', '1100-053', 'Lisboa']],
+    ['Portugal phone', 'Telefone: 912 345 678', 'Phone Number', ['912 345 678']],
+    ['Portugal NIF', 'NIF: 123456789', 'Tax ID', ['123456789']],
+
+    ['Brazil address', 'Endereço: Avenida Paulista 1578, São Paulo - SP, 01310-200', 'Street Address', ['Avenida Paulista 1578', 'São Paulo', '01310-200']],
+    ['Brazil phone', 'Telefone: (11) 91234-5678', 'Phone Number', ['(11) 91234-5678']],
+    ['Brazil CPF', 'CPF: 123.456.789-09', 'Tax ID', ['123.456.789-09']],
+    ['Brazil CNPJ', 'CNPJ: 11.222.333/0001-81', 'Tax ID', ['11.222.333/0001-81']],
+
+    ['Russia address', 'Адрес: улица Ленина 5, Москва, 101000', 'Street Address', ['улица Ленина 5', 'Москва', '101000']],
+    ['Russia phone', 'Телефон: +7 912 345-67-89', 'Phone Number', ['+7 912 345-67-89']],
+    ['Russia INN', 'ИНН: 771234567890', 'Tax ID', ['771234567890']],
+    ['Russia SNILS', 'СНИЛС: 123-456-789 01', 'National ID', ['123-456-789 01']],
+
+    ['Japan address', '住所: 〒100-0001 東京都千代田区千代田1-1', 'Street Address', ['100-0001', '東京都千代田区千代田1-1']],
+    ['Japan phone', '電話: 090-1234-5678', 'Phone Number', ['090-1234-5678']],
+    ['Japan My Number', 'マイナンバー: 1234 5678 9012', 'National ID', ['1234 5678 9012']],
+
+    ['China address', '地址：北京市朝阳区建国路88号，邮编100022', 'Street Address', ['北京市朝阳区建国路88号', '100022']],
+    ['China phone', '手机：138 0013 8000', 'Phone Number', ['138 0013 8000']],
+    ['China resident ID', '身份证号：11010119900307888X', 'National ID', ['11010119900307888X']],
+
+    ['India address', 'Address: 12 MG Road, Bengaluru, Karnataka 560001', 'Street Address', ['12 MG Road', 'Bengaluru', '560001']],
+    ['India phone', 'Mobile: +91 98765 43210', 'Phone Number', ['+91 98765 43210']],
+    ['India Aadhaar', 'Aadhaar: 1234 5678 9012', 'National ID', ['1234 5678 9012']],
+    ['India PAN', 'PAN: ABCDE1234F', 'Tax ID', ['ABCDE1234F']]
+    ,
+    ['Italy address', 'Indirizzo: Via Roma 10, 00100 Roma', 'Street Address', ['Via Roma 10', '00100', 'Roma']],
+    ['Italy phone', 'Telefono: 347 123 4567', 'Phone Number', ['347 123 4567']],
+    ['Italy fiscal code', 'Codice fiscale: RSSMRA85M01H501Z', 'National ID', ['RSSMRA85M01H501Z']],
+    ['Italy VAT number', 'Partita IVA: 12345678901', 'Tax ID', ['12345678901']],
+
+    ['Korea address', '주소: 서울특별시 강남구 테헤란로 123, 06134', 'Street Address', ['서울특별시 강남구 테헤란로 123', '06134']],
+    ['Korea phone', '전화: 010-1234-5678', 'Phone Number', ['010-1234-5678']],
+    ['Korea resident number', '주민등록번호: 900101-1234567', 'National ID', ['900101-1234567']],
+    ['Korea bank account', '계좌번호: 123-456-789012', 'Bank Account', ['123-456-789012']]
+  ];
+
+  test.each(cases)('%s', (label, text, expectedType, sensitiveParts) => {
+    C.categories.names = false;
+    const { result, items } = C.redactString(text);
+    expect(hasType(items, expectedType)).toBe(true);
+    for (const part of sensitiveParts) expect(result).not.toContain(part);
+  });
+
+  test('does not treat an unlabeled nine-digit order number as an SSN', () => {
+    C.categories.names = false;
+    const text = 'Order 123456789 is ready';
+    expect(C.redactString(text).result).toBe(text);
+  });
+
+  test('does not redact unlabeled national-ID-shaped values', () => {
+    C.categories.names = false;
+    const text = 'References 1234 5678 9012 and ABCDE1234F';
+    expect(C.redactString(text).result).toBe(text);
+  });
+
+  test.each([
+    ['ssn', 'Aadhaar: 1234 5678 9012'],
+    ['taxId', 'PAN: ABCDE1234F'],
+    ['phones', 'Mobile: +91 98765 43210'],
+    ['addresses', 'Address: 12 MG Road, Bengaluru, Karnataka 560001']
+  ])('respects the %s category toggle', (category, text) => {
+    C.categories.names = false;
+    C.categories[category] = false;
+    expect(C.redactString(text).result).toBe(text);
+  });
+});
+
+// ─── Italian ─────────────────────────────────────────────────────────────────
+
+describe('Italian', () => {
+  test('detects localized date', () => {
+    const { result, items } = C.redactString('Nato il 15 ottobre 1985.');
+    expect(hasType(items, 'Date')).toBe(true);
+    expect(result).not.toContain('15 ottobre 1985');
+  });
+
+  test('detects passport, medical ID, and credential labels', () => {
+    const { result, items } = C.redactString(
+      'Passaporto: YA1234567, tessera sanitaria: RSSMRA85M01H501Z, password: Segreto123'
+    );
+    expect(hasType(items, 'Passport Number')).toBe(true);
+    expect(hasType(items, 'Medical Record Number')).toBe(true);
+    expect(hasType(items, 'Credential')).toBe(true);
+    expect(result).not.toContain('YA1234567');
+    expect(result).not.toContain('RSSMRA85M01H501Z');
+    expect(result).not.toContain('Segreto123');
+  });
+});
+
+// ─── Korean ──────────────────────────────────────────────────────────────────
+
+describe('Korean', () => {
+  test('detects localized numeric date', () => {
+    const { result, items } = C.redactString('생년월일: 1990년 1월 15일');
+    expect(hasType(items, 'Date')).toBe(true);
+    expect(result).not.toContain('1990년 1월 15일');
+  });
+
+  test('detects passport, driver license, and medical labels', () => {
+    const { result, items } = C.redactString(
+      '여권번호: M12345678, 운전면허번호: 서울 12-34-567890-12, 건강보험증번호: 12345678901'
+    );
+    expect(hasType(items, 'Passport Number')).toBe(true);
+    expect(hasType(items, 'Drivers License')).toBe(true);
+    expect(hasType(items, 'Medical Record Number')).toBe(true);
+    expect(result).not.toContain('M12345678');
+    expect(result).not.toContain('서울 12-34-567890-12');
+    expect(result).not.toContain('12345678901');
   });
 });
 
@@ -371,7 +505,7 @@ describe('English no-regression (locale-aware build)', () => {
 describe('Chrome i18n locale architecture', () => {
   const ROOT = path.resolve(__dirname, '..');
   const manifest = require('../manifest.json');
-  const LANGS = ['en', 'fr', 'de', 'es', 'pt', 'ru', 'ja', 'zh'];
+  const LANGS = ['en', 'fr', 'de', 'es', 'pt', 'ru', 'ja', 'zh', 'hi', 'it', 'ko'];
 
   test('manifest declares a default_locale', () => {
     expect(manifest.default_locale).toBe('en');
@@ -386,6 +520,14 @@ describe('Chrome i18n locale architecture', () => {
   });
 
   test('every supported language has a valid messages.json', () => {
+    const onboardingKeys = [
+      'onboardingTitle', 'onboardingWelcome', 'onboardingSubtitle',
+      'onboardingHowTitle', 'onboardingHowText', 'onboardingToggleHint',
+      'onboardingLocalTitle', 'onboardingLocalText', 'onboardingInputsTitle',
+      'onboardingPlainText', 'onboardingPartial', 'onboardingPlatformsTitle',
+      'onboardingCoverageTitle', 'onboardingFooter'
+    ];
+
     LANGS.forEach((lang) => {
       const file = path.join(ROOT, '_locales', lang, 'messages.json');
       expect(fs.existsSync(file)).toBe(true);
@@ -393,6 +535,10 @@ describe('Chrome i18n locale architecture', () => {
       expect(msgs.appName).toBeDefined();
       expect(typeof msgs.appName.message).toBe('string');
       expect(msgs.appName.message.length).toBeGreaterThan(0);
+      onboardingKeys.forEach((key) => {
+        expect(msgs[key]).toBeDefined();
+        expect(msgs[key].message.length).toBeGreaterThan(0);
+      });
     });
   });
 });

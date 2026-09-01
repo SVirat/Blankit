@@ -68,6 +68,8 @@ describe('manifest.json', () => {
     expect(manifest.host_permissions).toContain('https://chatgpt.com/*');
     expect(manifest.host_permissions).toContain('https://claude.ai/*');
     expect(manifest.host_permissions).toContain('https://gemini.google.com/*');
+    expect(manifest.host_permissions).toContain('https://grok.com/*');
+    expect(manifest.host_permissions).toContain('https://*.perplexity.ai/*');
   });
 
   test('has service worker background script', () => {
@@ -127,7 +129,7 @@ describe('manifest.json', () => {
     const mainScript = manifest.content_scripts.find(cs => cs.world === 'MAIN');
     const js = mainScript.js;
     // Each platform's selectors should come before its interceptor
-    for (const platform of ['chatgpt', 'claude', 'gemini']) {
+    for (const platform of ['chatgpt', 'claude', 'gemini', 'grok', 'perplexity']) {
       const selIdx = js.indexOf(`src/platforms/${platform}/selectors.js`);
       const intIdx = js.indexOf(`src/platforms/${platform}/interceptor.js`);
       expect(selIdx).toBeLessThan(intIdx);

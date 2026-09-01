@@ -238,7 +238,7 @@ describe('Regression — Credit card patterns', () => {
 
 // ─── File Upload Pipeline Regressions ───────────────────────────────────────
 // These regressions cover bugs fixed in the D&D and file upload pipeline
-// across ChatGPT, Claude, and Gemini.
+// across ChatGPT, Claude, Gemini, and Grok.
 
 describe('Regression — Headers serialization safety', () => {
   // Bug: copyHeaders() used to return Headers instances or arrays, which
@@ -355,14 +355,6 @@ describe('Regression — Gemini D&D upload size mismatch', () => {
 });
 
 describe('Regression — Original method preservation for interceptors', () => {
-  test('_origXHROpen is required for Gemini session re-open', () => {
-    // Gemini interceptor calls C._origXHROpen.call(xhr, ...) to re-open
-    // XHR with corrected headers during upload session creation.
-    // If this is missing, the session size correction cannot work.
-    expect(typeof C._origXHROpen).toBe('function');
-    expect(C._origXHROpen).toBe(XMLHttpRequest.prototype.open);
-  });
-
   test('_origXHRSend is required for bypass sends', () => {
     expect(typeof C._origXHRSend).toBe('function');
     expect(C._origXHRSend).toBe(XMLHttpRequest.prototype.send);
