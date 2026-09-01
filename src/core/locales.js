@@ -13,7 +13,7 @@
 //     module gracefully merges ALL supported languages, guaranteeing detection
 //     for mixed-language content without any user configuration.
 //
-// Languages: en (base) + ja, fr, ru, pt, es, de, zh
+// Languages: en (base) + ja, fr, ru, pt, es, de, zh, hi, it, ko
 (function () {
     'use strict';
 
@@ -178,10 +178,48 @@
                 '许', '韩', '冯', '邓', '曹', '彭', '曾', '萧', '田', '董', '袁', '潘', '蒋',
                 '蔡', '余', '杜', '叶', '程', '苏', '魏', '吕', '丁', '任', '沈', '姚', '卢',
                 '钟', '崔', '谭', '陆', '范', '金', '石', '廖', '贾', '夏', '韦', '付', '方', '白']
+        },
+
+        hi: {
+            passport: ['पासपोर्ट'],
+            dl: ['ड्राइविंग लाइसेंस', 'चालक लाइसेंस'],
+            medical: ['आभा आईडी', 'स्वास्थ्य आईडी', 'रोगी संख्या'],
+            bank: ['खाता संख्या', 'बैंक खाता'],
+            credentials: ['पासवर्ड', 'गुप्त कुंजी']
+        },
+
+        it: {
+            months: ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno',
+                'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'],
+            addressPrefix: ['via', 'viale', 'piazza', 'corso', 'vicolo', 'largo', 'strada'],
+            passport: ['passaporto', 'numero di passaporto'],
+            dl: ['patente di guida', 'patente'],
+            medical: ['tessera sanitaria', 'numero paziente', 'cartella clinica'],
+            bank: ['conto', 'numero di conto', 'IBAN'],
+            credentials: ['password', 'parola chiave'],
+            nameIntro: ['mi chiamo', 'il mio nome è', 'il mio nome e', 'sono', 'signor', 'signora'],
+            commonNames: ['Marco', 'Giuseppe', 'Antonio', 'Francesco', 'Luca', 'Andrea', 'Matteo',
+                'Alessandro', 'Davide', 'Giovanni', 'Maria', 'Anna', 'Giulia', 'Francesca',
+                'Sara', 'Laura', 'Elena', 'Valentina', 'Chiara', 'Paola'],
+            stopWords: ['Il', 'Lo', 'La', 'I', 'Gli', 'Le', 'Un', 'Uno', 'Una', 'Io', 'Tu', 'Lui',
+                'Lei', 'Noi', 'Voi', 'Loro', 'E', 'O', 'Ma', 'Con', 'Per', 'Di', 'Da', 'In', 'Su',
+                'Ciao', 'Buongiorno', 'Grazie', 'Signor', 'Signora', 'Numero', 'Conto', 'Indirizzo']
+        },
+
+        ko: {
+            passport: ['여권', '여권번호'],
+            dl: ['운전면허', '운전면허증', '운전면허번호'],
+            medical: ['건강보험증번호', '환자번호', '의료기록번호'],
+            bank: ['계좌번호', '은행계좌'],
+            credentials: ['비밀번호', '암호'],
+            honorifics: ['님', '씨', '선생님', '교수님', '의사'],
+            nameLabels: ['이름', '성명', '담당자'],
+            surnames: ['김', '이', '박', '최', '정', '강', '조', '윤', '장', '임', '한', '오',
+                '서', '신', '권', '황', '안', '송', '전', '홍', '유', '고', '문', '양', '손']
         }
     };
 
-    var SUPPORTED = ['en', 'fr', 'de', 'es', 'pt', 'ru', 'ja', 'zh'];
+    var SUPPORTED = ['en', 'fr', 'de', 'es', 'pt', 'ru', 'ja', 'zh', 'hi', 'it', 'ko'];
 
     // =========================================================================
     // mergeArray — push unique values from src into dest

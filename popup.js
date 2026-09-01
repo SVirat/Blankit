@@ -47,6 +47,26 @@
     }
     localizeStatic();
 
+    // Match the active AI site's theme, falling back to the OS preference.
+    function applyTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme === 'light' ? 'light' : 'dark');
+    }
+
+    function getSystemTheme() {
+        return window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+    }
+
+    applyTheme(getSystemTheme());
+    chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+        if (!tabs[0]) return;
+        chrome.tabs.sendMessage(tabs[0].id, { type: 'GET_PAGE_THEME' }, function (response) {
+            if (chrome.runtime.lastError) return;
+            if (response && (response.theme === 'light' || response.theme === 'dark')) {
+                applyTheme(response.theme);
+            }
+        });
+    });
+
     // =========================================================================
     // Load current state
     // =========================================================================

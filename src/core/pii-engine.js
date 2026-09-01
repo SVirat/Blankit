@@ -134,6 +134,8 @@
         'verification', 'background', 'reference', 'recommendation',
         // AI platform / model identifiers — prevent false-positive name matches
         'Claude', 'claude', 'Gemini', 'gemini', 'ChatGPT', 'chatgpt',
+        'Grok', 'grok', 'xAI', 'xai',
+        'Perplexity', 'perplexity',
         'GPT', 'gpt', 'Anthropic', 'anthropic', 'Mistral', 'mistral',
         'Llama', 'llama', 'Copilot', 'copilot', 'Sonnet', 'sonnet',
         'Opus', 'opus', 'Haiku', 'haiku', 'Flash', 'flash',
@@ -153,6 +155,7 @@
     var PATTERNS = [
         // ── Highly distinctive patterns (run first) ─────────────────────
         { key: 'emails',           label: 'EMAIL',    type: 'Email',                  regex: /\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b/g },
+        { key: 'credentials',      label: 'SECRET',   type: 'Credential',             regex: /\b(?:sk-proj-[A-Za-z0-9_-]{20,}|sk-ant-(?:api\d{2}-)?[A-Za-z0-9_-]{20,}|sk-(?!ant-|live_|test_)[A-Za-z0-9_-]{20,}|gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|AIza[0-9A-Za-z_-]{20,}|AKIA[0-9A-Z]{16}|(?:sk|rk)_(?:live|test)_[0-9A-Za-z]{16,}|xox[baprs]-[0-9A-Za-z-]{20,})\b/g },
         { key: 'credentials',      label: 'SECRET',   type: 'Credential',             regex: /(?:(?:password|passwd|pwd)[:\s=]*\S{6,}|(?:api[_\-]?key|apikey|api[_\-]?secret|access[_\-]?key|secret[_\-]?key)[:\s=]*['"]?\S{8,}['"]?|Bearer\s+[A-Za-z0-9\-._~+\/]+=*|(?:-----BEGIN (?:RSA |EC |DSA |OPENSSH |PGP )?PRIVATE KEY-----[\s\S]*?-----END (?:RSA |EC |DSA |OPENSSH |PGP )?PRIVATE KEY-----))/gi },
         { key: 'urls',             label: 'URL',      type: 'URL',                    regex: /\bhttps?:\/\/[^\s<>"')\]]+/gi },
 
@@ -162,16 +165,47 @@
         { key: 'creditCards',      label: 'CC',       type: 'Credit Card',            regex: /\b(?:\d{4}[-\s]?){3}\d{4}\b/g },
         { key: 'ip',               label: 'IP',       type: 'IP Address',             regex: /\b(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.(?:25[0-5]|2[0-4]\d|[01]?\d\d?)|(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|(?:[0-9a-fA-F]{1,4}:){1,7}:|(?:[0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|::(?:[fF]{4}:)?(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.(?:25[0-5]|2[0-4]\d|[01]?\d\d?))\b/g },
 
+        // ── Country-specific national and tax identifiers ───────────────
+        // Labels are required because the underlying digit sequences overlap
+        // heavily with order numbers, timestamps, and other non-PII values.
+        { key: 'ssn',              label: 'NATIONALID', type: 'National ID',          regex: /(?:NIR|num[ée]ro de s[ée]curit[ée] sociale)[:\s#：]*(?:[12]\s?\d{2}\s?(?:0[1-9]|1[0-2])\s?(?:2[AB]|\d{2})\s?\d{3}\s?\d{3}\s?\d{2})/gi },
+        { key: 'taxId',            label: 'TAXID',    type: 'Tax ID',                 regex: /(?:Steuer(?:identifikationsnummer|-?ID)|IdNr)[:\s#：]*(?:\d[\s-]?){10}\d\b/gi },
+        { key: 'ssn',              label: 'NATIONALID', type: 'National ID',          regex: /(?:DNI|documento nacional de identidad)[:\s#：]*\d{8}[A-Z]\b|(?:NIE|n[úu]mero de identidad de extranjero)[:\s#：]*[XYZ]\d{7}[A-Z]\b/gi },
+        { key: 'taxId',            label: 'TAXID',    type: 'Tax ID',                 regex: /(?:NIF|n[úu]mero de identifica[çc][ãa]o fiscal)[:\s#：]*\d{9}\b/gi },
+        { key: 'taxId',            label: 'TAXID',    type: 'Tax ID',                 regex: /(?:CPF)[:\s#：]*\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b|(?:CNPJ)[:\s#：]*\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}\b/gi },
+        { key: 'taxId',            label: 'TAXID',    type: 'Tax ID',                 regex: /(?:ИНН)[:\s#：]*(?:\d{10}|\d{12})\b/gi },
+        { key: 'ssn',              label: 'NATIONALID', type: 'National ID',          regex: /(?:СНИЛС)[:\s#：]*\d{3}-?\d{3}-?\d{3}[\s-]?\d{2}\b/gi },
+        { key: 'ssn',              label: 'NATIONALID', type: 'National ID',          regex: /(?:マイナンバー|個人番号)[:\s#：]*(?:\d[\s-]?){11}\d\b/g },
+        { key: 'ssn',              label: 'NATIONALID', type: 'National ID',          regex: /(?:身份证(?:号|号码)?|公民身份号码)[:\s#：]*\d{17}[0-9X]\b/g },
+        { key: 'ssn',              label: 'NATIONALID', type: 'National ID',          regex: /(?:Aadhaar|Aadhar|आधार)(?:\s*(?:number|no|संख्या))?[:\s#：]*(?:\d{4}[\s-]?){2}\d{4}\b/gi },
+        { key: 'taxId',            label: 'TAXID',    type: 'Tax ID',                 regex: /(?:PAN|Permanent Account Number|पैन)(?:\s*(?:number|no|संख्या))?[:\s#：]*[A-Z]{5}\d{4}[A-Z]\b/gi },
+        { key: 'medical',          label: 'MRN',      type: 'Medical Record Number',  regex: /(?:ABHA(?:\s*(?:ID|number|no))?|आभा(?:\s*(?:आईडी|संख्या))?)[:\s#：]*\d{2}-?\d{4}-?\d{4}-?\d{4}\b/gi },
+        { key: 'ssn',              label: 'NATIONALID', type: 'National ID',          regex: /(?:codice\s+fiscale|C\.F\.)[:\s#：]*[A-Z]{6}\d{2}[A-Z]\d{2}[A-Z]\d{3}[A-Z]\b/gi },
+        { key: 'taxId',            label: 'TAXID',    type: 'Tax ID',                 regex: /(?:partita\s+IVA|P\.?\s*IVA)[:\s#：]*\d{11}\b/gi },
+        { key: 'ssn',              label: 'NATIONALID', type: 'National ID',          regex: /(?:주민등록번호|외국인등록번호)[:\s#：]*\d{6}-?\d{7}\b/g },
+        { key: 'driversLicense',   label: 'DL',       type: 'Drivers License',        regex: /(?:운전면허번호|운전면허증?)[:\s#：]*(?:서울|부산|대구|인천|광주|대전|울산|경기|강원|충북|충남|전북|전남|경북|경남|제주|세종)\s*\d{2}-?\d{2}-?\d{6}-?\d{2}\b/g },
+        { key: 'bankAccount',      label: 'BANK',     type: 'Bank Account',           regex: /(?:계좌번호|은행계좌)[:\s#：]*\d{2,6}(?:-\d{2,6}){1,3}\b/g },
+
+        // Postal codes are identifying only when explicitly labeled.
+        { key: 'addresses',        label: 'ADDR',     type: 'Postal Code',            regex: /(?:ZIP(?:\s*code)?|postal\s*code|code\s*postal|PLZ|Postleitzahl|c[óo]digo\s*postal|CEP|почтовый\s*индекс|индекс|郵便番号|邮(?:政编|编)码|PIN(?:\s*code)?|पिन\s*कोड)[:\s#：〒]*(?:\d{3}-\d{4}|\d{4}-\d{3}|\d{5}(?:-\d{3,4})?|\d{6})\b/gi },
+
+        // CJK and Indian addresses do not fit the Latin street-word model.
+        { key: 'addresses',        label: 'ADDR',     type: 'Street Address',         regex: /〒?\s*\d{3}-\d{4}\s+[\u3040-\u30ff\u4e00-\u9fff0-9ー丁目番地号\-]{4,50}/g },
+        { key: 'addresses',        label: 'ADDR',     type: 'Street Address',         regex: /[\u4e00-\u9fff]{2,}(?:路|街|道|巷|弄)\d{1,5}号(?:[，,\s]*(?:邮编|郵編|邮政编码)[:：]?\s*\d{6})?/g },
+        { key: 'addresses',        label: 'ADDR',     type: 'Street Address',         regex: /\b\d{1,5}\s+(?:[A-Za-z]+\s+){0,4}(?:Road|Rd|Street|St|Marg|Nagar|Colony|Lane|Ln|Sector),\s*[A-Za-z]+(?:\s+[A-Za-z]+){0,2},\s*[A-Za-z]+(?:\s+[A-Za-z]+){0,2}\s+\d{6}\b/gi },
+        { key: 'addresses',        label: 'ADDR',     type: 'Street Address',         regex: /(?:주소[:：]\s*)?(?:[가-힣]+(?:특별시|광역시|도)\s+)?[가-힣]+(?:시|군|구)\s+[가-힣0-9]+(?:로|길)\s+\d{1,5}(?:-\d{1,5})?(?:,?\s*\d{5})?/g },
+
         // ── Keyword-prefixed IDs (require label to avoid false positives) ─
-        { key: 'driversLicense',   label: 'DL',       type: 'Drivers License',        regex: /\b(?:D\.?L\.?|driver'?s?\s*(?:license|licence|lic))[:\s#]*[A-Z0-9]{5,15}\b/gi },
+        { key: 'driversLicense',   label: 'DL',       type: 'Drivers License',        regex: /\b(?:D\.?L\.?|(?:driver'?s?|driving)\s*(?:license|licence|lic))[:\s#]*[A-Z0-9](?:[A-Z0-9 -]{3,18}[A-Z0-9])\b/gi },
         { key: 'passport',         label: 'PASSPORT', type: 'Passport Number',        regex: /\b(?:passport)(?:\s*(?:no|number|#|num))?[:\s#]*[A-Z]{0,2}\d{6,9}\b/gi },
         { key: 'taxId',            label: 'TAXID',    type: 'Tax ID',                 regex: /\b(?:TIN|EIN|ITIN)[:\s#-]*\d{2}[-\s]?\d{7}\b/g },
         { key: 'bankAccount',      label: 'BANK',     type: 'Bank Account',           regex: /\b(?:(?:account|acct|a\/c)[:\s#]*\d{8,17}|(?:IBAN)[:\s]*[A-Z]{2}\d{2}[\s]?[A-Z0-9]{4}(?:[\s]?[A-Z0-9]{4}){2,7}(?:[\s]?[A-Z0-9]{1,4})?|(?:SWIFT|BIC)[:\s]*[A-Z]{6}[A-Z0-9]{2}(?:[A-Z0-9]{3})?)\b/gi },
         { key: 'medical',          label: 'MRN',      type: 'Medical Record Number',  regex: /\bMR#[:\s]*[A-Z0-9]{4,15}\b|\b(?:MRN)[:\s#]+[A-Z0-9]{4,15}\b|(?:Medical Record|Health Plan|Beneficiary|Patient (?:ID|Acct|Account)|Insurance (?:ID|Policy))[:\s#]+(?=[A-Z0-9]*\d)[A-Z0-9]{4,15}\b/gi },
-        { key: 'ssn',              label: 'SSN',      type: 'SSN',                    regex: /\b\d{3}[-\s]?\d{2}[-\s]?\d{4}\b/g },
+        { key: 'ssn',              label: 'SSN',      type: 'SSN',                    regex: /\b\d{3}[-\s]\d{2}[-\s]\d{4}\b|\bSSN(?:\s+is)?[:\s#]*(?:\d{9})\b/gi },
 
         // ── Generic patterns (run last to avoid conflicts) ──────────────
-        { key: 'phones',           label: 'PHONE',    type: 'Phone Number',           regex: /(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/g },
+        { key: 'phones',           label: 'PHONE',    type: 'Phone Number',           regex: /\+\d{1,3}(?:[\s.()-]*\d){7,14}\b|\b0[1-9](?:[ .-]?\d{2}){4}\b|(?:Telefon|Telefono|T[ée]l[ée]phone|Tel[ée]fono|Telefone|Телефон|電話|手机|전화|Mobile)[:\s：]*(?:\(?\d{2,5}\)?[\s.-]?)?\d{3,5}(?:[\s.-]?\d{2,5}){1,3}\b|(?<![\d.])[6-9]\d{2}[\s.-]?\d{3}[\s.-]?\d{3}(?![\d.])|\b0(?:10|1[16789])-?\d{3,4}-?\d{4}\b|\b0[789]0-?\d{4}-?\d{4}\b|\b1[3-9]\d[\s.-]?\d{4}[\s.-]?\d{4}\b/gi },
+        { key: 'phones',           label: 'PHONE',    type: 'Phone Number',           regex: /(?<!\d)(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}(?!\d)/g },
         { key: 'addresses',        label: 'ADDR',     type: 'Street Address',         regex: /\b\d{1,5}\s+(?:[A-Za-z]+\s+){1,4}(?:[Ss]t(?:reet)?|[Aa]ve(?:nue)?|[Bb]lvd|[Bb]oulevard|[Dd]r(?:ive)?|[Ll]n|[Ll]ane|[Rr]d|[Rr]oad|[Cc]t|[Cc]ourt|[Pp]l(?:ace)?|[Ww]ay|[Cc]ir(?:cle)?|[Tt]er(?:race)?|[Tt]rl|[Tt]rail|[Pp]kwy|[Pp]arkway|[Hh]wy|[Hh]ighway|[Aa]lly?|[Aa]lley|[Ll]oop|[Pp]ass|[Pp]ike)\.?(?:\s*,\s*(?:[Aa]pt|[Ss]uite|[Uu]nit|[Ss]te|#)\.?\s*\w+)?(?:\s*,\s*[A-Za-z]+(?:\s+[A-Za-z]+){0,2})?(?:\s*,?\s+[A-Z]{2}(?=\s+\d{5}|[\s.,;!?\n\r]|$))?(?:\s+\d{5}(?:-\d{4})?)?/g },
         { key: 'dates',            label: 'DOB',      type: 'Date',                   regex: /\b(?:(?:0?[1-9]|1[0-2])[\/\-](?:0?[1-9]|[12]\d|3[01])[\/\-](?:19|20)\d{2}|(?:19|20)\d{2}[\/\-](?:0?[1-9]|1[0-2])[\/\-](?:0?[1-9]|[12]\d|3[01])|(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2},?\s+(?:19|20)\d{2}|\d{1,2}\s+(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(?:19|20)\d{2})\b/gi }
     ];
@@ -199,15 +233,15 @@
         // ── Keyword-anchored localized IDs (highly specific) ─────────────
         if (LOCALE.passport.length) {
             _loc.push({ key: 'passport', label: 'PASSPORT', type: 'Passport Number',
-                regex: new RegExp('(?:' + _alt(LOCALE.passport) + ')(?:\\s*(?:no|number|num|n[ºo°]|#|号|番号))?[:\\s#：]*[A-Z]{0,2}\\d{6,9}', 'gi') });
+                regex: new RegExp('(?:' + _alt(LOCALE.passport) + ')(?:\\s*(?:no|number|num|n[ºo°]|#|号|番号))?[:\\s#：]*(?=[A-Z0-9<\\- ]{6,16}\\b)(?=[A-Z0-9<\\- ]*\\d)[A-Z0-9](?:[A-Z0-9<\\- ]{4,14}[A-Z0-9])\\b', 'gi') });
         }
         if (LOCALE.dl.length) {
             _loc.push({ key: 'driversLicense', label: 'DL', type: 'Drivers License',
-                regex: new RegExp('(?:' + _alt(LOCALE.dl) + ')(?:\\s*(?:no|number|num|n[ºo°]|#|号|番号))?[:\\s#：]*[A-Z0-9\\-]{5,15}', 'gi') });
+                regex: new RegExp('(?:' + _alt(LOCALE.dl) + ')(?:\\s*(?:no|number|num|n[ºo°]|#|号|番号))?[:\\s#：]*[A-Z0-9](?:[A-Z0-9\\- ]{3,18}[A-Z0-9])\\b', 'gi') });
         }
         if (LOCALE.medical.length) {
             _loc.push({ key: 'medical', label: 'MRN', type: 'Medical Record Number',
-                regex: new RegExp('(?:' + _alt(LOCALE.medical) + ')(?:\\s*(?:no|number|num|n[ºo°]|#|号|番号))?[:\\s#：]*[A-Z0-9\\-]{4,15}', 'gi') });
+                regex: new RegExp('(?:' + _alt(LOCALE.medical) + ')(?:\\s*(?:no|number|num|n[ºo°]|#|号|番号))?[:\\s#：]*[A-Z0-9\\-]{4,20}', 'gi') });
         }
         if (LOCALE.bank.length) {
             _loc.push({ key: 'bankAccount', label: 'BANK', type: 'Bank Account',
@@ -227,6 +261,8 @@
         // CJK numeric dates: 1990年1月15日 / 1月15日
         _loc.push({ key: 'dates', label: 'DOB', type: 'Date',
             regex: /\d{4}\s*年\s*\d{1,2}\s*月\s*\d{1,2}\s*日|\d{1,2}\s*月\s*\d{1,2}\s*日/g });
+        _loc.push({ key: 'dates', label: 'DOB', type: 'Date',
+            regex: /\d{4}\s*년\s*\d{1,2}\s*월\s*\d{1,2}\s*일/g });
 
         // ── Localized addresses ──────────────────────────────────────────
         // Latin prefix style (rue/calle/rua/...) — a street number is required
@@ -235,21 +271,23 @@
             var _AP = _alt(LOCALE.addressPrefix);
             var _conn = "(?:de\\s+la\\s+|de\\s+l'|de\\s+|du\\s+|des\\s+|del\\s+|de\\s+los\\s+|da\\s+|do\\s+|dos\\s+)?";
             var _street = '[A-Za-zÀ-ÿ0-9\'’\\-]+(?:\\s+[A-Za-zÀ-ÿ0-9\'’\\-]+){0,2}';
+            var _streetBeforeNumber = '[A-Za-zÀ-ÿ\'’\\-]+(?:\\s+[A-Za-zÀ-ÿ\'’\\-]+){0,2}';
+            var _latinTail = '(?:,\\s*(?:\\d{4,5}(?:-\\d{3})?\\s+)?[A-Za-zÀ-ÿ]+(?:\\s+[A-Za-zÀ-ÿ]+){0,3}(?:\\s*-\\s*[A-Z]{2})?){0,2}(?:,\\s*\\d{4,5}(?:-\\d{3})?)?';
             _loc.push({ key: 'addresses', label: 'ADDR', type: 'Street Address',
                 regex: new RegExp(
-                    '\\b\\d{1,5}[,]?\\s+(?:' + _AP + ')\\.?\\s+' + _conn + _street +
-                    '|\\b(?:' + _AP + ')\\.?\\s+' + _conn + _street + ',?\\s+\\d{1,5}\\b', 'gi') });
+                    '\\b\\d{1,5}[,]?\\s+(?:' + _AP + ')\\.?\\s+' + _conn + _street + _latinTail +
+                    '|\\b(?:' + _AP + ')\\.?\\s+' + _conn + _streetBeforeNumber + ',?\\s+\\d{1,5}' + _latinTail, 'gi') });
         }
         // German glued-suffix style (Bahnhofstraße 5) — number required.
         if (LOCALE.addressSuffix.length) {
             _loc.push({ key: 'addresses', label: 'ADDR', type: 'Street Address',
-                regex: new RegExp('\\b[A-Za-zÄÖÜäöüß]{2,}(?:' + _alt(LOCALE.addressSuffix) + ')\\.?\\s+\\d{1,4}\\b', 'gi') });
+                regex: new RegExp('\\b[A-Za-zÄÖÜäöüß]{2,}(?:' + _alt(LOCALE.addressSuffix) + ')\\.?\\s+\\d{1,4}(?:,\\s*\\d{5}\\s+[A-Za-zÄÖÜäöüß]+(?:\\s+[A-Za-zÄÖÜäöüß]+){0,2})?', 'gi') });
         }
         // Cyrillic style (улица Ленина 5 / Ленина ул.) — number optional.
         if (LOCALE.addressPrefixCyrillic.length) {
             var _CA = _alt(LOCALE.addressPrefixCyrillic);
             _loc.push({ key: 'addresses', label: 'ADDR', type: 'Street Address',
-                regex: new RegExp('(?:' + _CA + ')\\.?\\s+[А-ЯЁ][а-яё]+(?:,?\\s+\\d{1,4})?|[А-ЯЁ][а-яё]+\\s+(?:' + _CA + ')\\.?(?:,?\\s+\\d{1,4})?', 'g') });
+                regex: new RegExp('(?:' + _CA + ')\\.?\\s+[А-ЯЁ][а-яё]+(?:,?\\s+\\d{1,4})?(?:,\\s*[А-ЯЁ][а-яё]+,\\s*\\d{6})?|[А-ЯЁ][а-яё]+\\s+(?:' + _CA + ')\\.?(?:,?\\s+\\d{1,4})?(?:,\\s*[А-ЯЁ][а-яё]+,\\s*\\d{6})?', 'g') });
         }
 
         // Insert localized rules just before the generic English patterns
@@ -286,7 +324,7 @@
             items.push({ type: 'Person Name', placeholder: ph });
             return ph;
         }
-        var CJK = '[\\u3040-\\u30ff\\u4e00-\\u9fff\\uff66-\\uff9f]';
+        var CJK = '[\\u3040-\\u30ff\\u4e00-\\u9fff\\uac00-\\ud7af\\uff66-\\uff9f]';
 
         // ── CJK: name immediately followed by an honorific ──────────────
         if (LOCALE.honorifics.length) {
@@ -300,7 +338,7 @@
         }
         // ── ZH/JP: surname-anchored name after an intro marker ──────────
         if (LOCALE.surnames.length) {
-            var reIntro = new RegExp('(叫|我是|本人|姓|私は|僕は|名は)((?:' + _alt(LOCALE.surnames) + ')' + CJK + '{1,2})', 'g');
+            var reIntro = new RegExp('(叫|我是|本人|姓|私は|僕は|名は|저는|제 이름은|이름은)\\s*((?:' + _alt(LOCALE.surnames) + ')' + CJK + '{1,2})', 'g');
             result = result.replace(reIntro, function (m, intro, nm) { return intro + add(nm); });
         }
 
@@ -667,6 +705,25 @@
         'parent_message_id', 'conversation_id'
     ]);
 
+    var CREDENTIAL_KEY_RE = /^(?:api[-_]?key|apikey|x[-_]?api[-_]?key|api[-_]?secret|client[-_]?secret|secret[-_]?key|access[-_]?key|access[-_]?token|auth[-_]?token|bearer[-_]?token|refresh[-_]?token|private[-_]?token|token|authorization|password|passwd|pwd)$/i;
+
+    function redactCredentialField(value, items) {
+        if (!C.categories.credentials || typeof value !== 'string' || value.length < 6) return value;
+        var placeholders = Object.keys(C.redactionMap);
+        for (var i = 0; i < placeholders.length; i++) {
+            var existing = C.redactionMap[placeholders[i]];
+            if (existing && existing.type === 'Credential' && existing.original === value) {
+                items.push({ type: 'Credential', placeholder: placeholders[i] });
+                return placeholders[i];
+            }
+        }
+        C.redactionCounter++;
+        var placeholder = '[SECRET_' + C.redactionCounter + ']';
+        C.redactionMap[placeholder] = { original: value, type: 'Credential' };
+        items.push({ type: 'Credential', placeholder: placeholder });
+        return placeholder;
+    }
+
     C.deepRedactObj = function (obj) {
         var allItems = [];
 
@@ -682,7 +739,10 @@
                 var out = {};
                 for (var key in node) {
                     if (Object.prototype.hasOwnProperty.call(node, key)) {
-                        out[key] = SKIP_KEYS.has(key) ? node[key] : walk(node[key]);
+                        if (SKIP_KEYS.has(key)) out[key] = node[key];
+                        else if (CREDENTIAL_KEY_RE.test(key) && typeof node[key] === 'string') {
+                            out[key] = redactCredentialField(node[key], allItems);
+                        } else out[key] = walk(node[key]);
                     }
                 }
                 return out;

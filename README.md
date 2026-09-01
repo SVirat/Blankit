@@ -19,13 +19,14 @@
 ![Lines](https://img.shields.io/badge/coverage--lines-100%25-brightgreen)
 ![Branches](https://img.shields.io/badge/coverage--branches-100%25-brightgreen)
 
-Blankit is a Chrome extension that automatically scrubs sensitive personal information (names, SSNs, emails, phone numbers, medical records, credit cards, etc.) from your prompts and uploaded documents before they reach ChatGPT, Claude, or Gemini. All processing happens entirely in your browser, nothing leaves your device.
+Blankit is a Chrome extension that automatically scrubs sensitive personal information (names, SSNs, emails, phone numbers, medical records, credit cards, etc.) from your prompts and uploaded documents before they reach ChatGPT, Claude, Gemini, Grok, or Perplexity. All processing happens entirely in your browser, nothing leaves your device.
 
 ## Features
 
 - **Automatic redaction**: Intercepts outgoing API requests and scrubs PII/PHI at the network boundary
 - **Document support**: Redacts PII in uploaded documents and common office formats (PDF support is partial — see below)
-- **Multi-platform**: Works on ChatGPT, Claude, and Gemini
+- **Multi-platform**: Works on ChatGPT, Claude, Gemini, Grok, and Perplexity
+- **Multi-language**: Detects localized PII across English, French, German, Spanish, Portuguese, Russian, Japanese, Chinese, Hindi, Italian, and Korean
 - **Granular control**: Toggle 17 individual detection categories (emails, phones, SSN, credit cards, addresses, names, dates, medical records, IP addresses, passport numbers, driver’s licenses, tax IDs, bank accounts, MAC addresses, URLs, credentials, UUIDs)
 - **NLP-powered name detection**: Uses compromise.js for natural language name recognition with regex fallback, covering Western, Indian, East Asian, and hyphenated names
 - **Custom word redaction**: Define your own words or regex patterns to redact. Patterns containing regex metacharacters (e.g., `EMP-[0-9]+`) are auto-detected and applied as regex. Each match is replaced with a unique, non-deterministic 6-character hex hash (e.g., `[a3f7x2]`). Entries persist across uninstall/reinstall via sync storage.
@@ -48,7 +49,19 @@ Or if you want to test locally,
 2. Open `chrome://extensions` in Chrome
 3. Enable **Developer mode** (top-right toggle)
 4. Click **Load unpacked** and select the project folder
-5. Navigate to ChatGPT, Claude, or Gemini — Blankit activates automatically
+5. Navigate to ChatGPT, Claude, Gemini, Grok, or Perplexity — Blankit activates automatically
+
+## Testing
+
+Tests live in `tests/`. The Playwright suite launches Blankit as an unpacked extension against controlled fixtures on each supported hostname, exercising the production selectors and interception code.
+
+```powershell
+Set-Location tests
+npm install
+npm test -- --runInBand
+npx playwright install chromium
+npm run test:e2e
+```
 
 ## How It Works
 
@@ -99,7 +112,9 @@ Blankit/
 │   ├── platforms/                       # Per-site strategies
 │   │   ├── chatgpt/
 │   │   ├── claude/
-│   │   └── gemini/
+│   │   ├── gemini/
+│   │   ├── grok/
+│   │   └── perplexity/
 │   ├── content/                         # Content scripts
 │   │   ├── bridge.js                   # ISOLATED world — UI, un-redact, messaging
 │   │   └── styles.css

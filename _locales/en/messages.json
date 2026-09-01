@@ -14,7 +14,7 @@
   "toggleProtection": {
     "message": "Toggle Blankit protection"
   },
-  "headerSubtitle": { "message": "Local PII/PHI Redaction" },
+  "headerSubtitle": { "message": "Local PII Redaction" },
   "protectionActive": { "message": "Protection Active" },
   "deepSleep": { "message": "Deep Sleep" },
   "deepSleepHint": { "message": "Hides the floating badge and eye toggle on the page" },
@@ -69,6 +69,20 @@
   "copied": { "message": "Copied!" },
   "auditMore1": { "message": "Showing 50 of " },
   "auditMore2": { "message": ". Export for full log." },
+  "onboardingTitle": { "message": "Welcome to Blankit" },
+  "onboardingWelcome": { "message": "Welcome to Blankit" },
+  "onboardingSubtitle": { "message": "Real-time PII redaction for your AI conversations" },
+  "onboardingHowTitle": { "message": "How It Works" },
+  "onboardingHowText": { "message": "Blankit sits between you and your AI assistant. It automatically detects and redacts sensitive information before it reaches the cloud, and restores it in responses so your workflow stays seamless." },
+  "onboardingToggleHint": { "message": "Click the icon in the bottom-right to toggle protection, or use the toolbar." },
+  "onboardingLocalTitle": { "message": "100% Local Processing" },
+  "onboardingLocalText": { "message": "All redaction happens entirely in your browser. No data is sent to external servers. No analytics. No tracking. Your information never leaves your device." },
+  "onboardingInputsTitle": { "message": "Supported Input Types" },
+  "onboardingPlainText": { "message": "Plain Text" },
+  "onboardingPartial": { "message": "(partial)" },
+  "onboardingPlatformsTitle": { "message": "Supported Platforms" },
+  "onboardingCoverageTitle": { "message": "12 PII Types Covered" },
+  "onboardingFooter": { "message": "Click the Blankit icon in your toolbar to get started." },
   "itemSingular": { "message": "item" },
   "itemsPlural": { "message": "items" }
 }

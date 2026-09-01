@@ -50,8 +50,8 @@
 - **In-page un-redact toggle** to reveal original values without leaving the AI interface
 - **Audit log** with full redaction event history, exportable as JSON
 - **Scrub bubble** with instant download of cleaned documents
-- **Per-platform file upload interception** (ChatGPT via DOM events, Claude via Blob/FileReader prototypes)
-- **Multi-language PII/PHI detection** across 8 languages (English, French, German, Spanish, Portuguese, Russian, Japanese, Chinese) with automatic, graceful fallback to English
+- **Per-platform file upload interception** for ChatGPT, Claude, Gemini, Grok, and Perplexity
+- **Multi-language PII/PHI detection** across 11 languages (English, French, German, Spanish, Portuguese, Russian, Japanese, Chinese, Hindi, Italian, Korean) with automatic, graceful fallback to English
 - **Localized popup UI** — interface strings are translated via Chrome's `_locales` i18n system and auto-selected from the browser language
 - **Freemium monetization** has been removed — all features including document redaction are now completely free and unlimited
 - **Zero network calls** — all processing is 100% local
@@ -60,7 +60,7 @@
 
 ## 2. Problem Statement
 
-Users routinely paste or upload documents containing sensitive personal information (names, SSNs, medical records, addresses, etc.) into cloud-hosted AI assistants like ChatGPT, Claude, and Gemini. This creates significant privacy and compliance risks:
+Users routinely paste or upload documents containing sensitive personal information (names, SSNs, medical records, addresses, etc.) into cloud-hosted AI assistants like ChatGPT, Claude, Gemini, Grok, and Perplexity. This creates significant privacy and compliance risks:
 
 - **HIPAA violations** when healthcare data is sent to third-party AI services.
 - **PII exposure** when user data in prompts or uploaded documents reaches cloud servers.
@@ -117,8 +117,10 @@ Existing solutions require server-side processing, manual review, or enterprise 
 | **ChatGPT** | `https://chatgpt.com/*` | ✅ Working | ✅ Working |
 | **Claude** | `https://claude.ai/*` | ✅ Working | ✅ Working |
 | **Gemini** | `https://gemini.google.com/*` | ✅ Working | ✅ Working |
+| **Grok** | `https://grok.com/*` | ✅ Working | ✅ Working |
+| **Perplexity** | `https://*.perplexity.ai/*` | ✅ Working | ✅ Working |
 
-All three platforms are configured as `host_permissions` and `content_scripts.matches` targets in the extension manifest.
+All five platforms are configured as `host_permissions` and `content_scripts.matches` targets in the extension manifest.
 
 ### 5.1 Per-Platform Isolation (Anti-Regression Architecture)
 
@@ -129,6 +131,8 @@ Each platform uses a **completely independent file upload interception strategy*
 | **ChatGPT** | `<input type="file">` change event → FormData via fetch | **DOM event interception**: Capture-phase `change` listener blocks the event, cleans files async, swaps `input.files` via `DataTransfer`, re-dispatches with bypass flag | ChatGPT (React) re-reads `input.files` on each change event; the re-dispatched event is trusted because the native input element fires it |
 | **Claude** | `<input type="file">` → `Blob.prototype.arrayBuffer()` / `FileReader` for content reading | **Blob/FileReader prototype override**: Overrides `Blob.prototype.arrayBuffer()`, `.text()`, `.stream()`, and all `FileReader.read*()` methods so any code reading file content transparently gets the cleaned version | Claude's framework reads file content via standard Blob/FileReader APIs; intercepting at this level works regardless of the framework's internal upload mechanism |
 | **Gemini** | `<input type="file">` change event + Base64 inline data in JSON body / Files API resumable upload via XHR | **Hybrid: DOM event interception + XHR/Fetch upload swap + File.prototype.name override + resumable upload size correction**: Capture-phase `change` listener cleans files before Gemini sees them. For drag-and-drop, the real trusted `drop` event passes through (Angular rejects synthetic DragEvents) while the cleaning cache is pre-warmed and `File.prototype.name` is overridden to return the redacted filename synchronously — so Gemini reads the redacted name even from the original File object. A key-based dedup cache (`name|size|lastModified`) prevents double-cleaning when Gemini creates separate JS references to the same file. Outgoing XHR/fetch uploads are intercepted and swapped with cleaned versions. For resumable uploads, `x-goog-upload-header-content-length` headers are corrected to match the cleaned file size. Blob slicing is tracked via WeakMap so chunked uploads use cleaned content. | Gemini (Angular) rejects synthetic events, so file-input interception uses DataTransfer swap (like ChatGPT) while drag-and-drop relies on intercepting the actual upload XHR/fetch layer plus `File.prototype.name` override for filename redaction |
+| **Grok** | `<input type="file">` change/drop events with same-origin or Grok/X.AI upload requests | **DOM event interception + shared network fallback**: Capture-phase listeners clean supported files and replace the browser file list before Grok handles it. FormData, direct File, Blob, and document-byte requests are also cleaned by the shared fetch/XHR layer. | Grok currently exposes a standard file input and React-compatible event flow; the network layer covers direct uploads to trusted Grok and X.AI hosts |
+| **Perplexity** | Hidden multi-file `<input type="file">` change/drop events with Perplexity upload requests | **DOM event interception + shared network fallback**: Capture-phase listeners clean supported files and replace the browser file list before Perplexity handles it. Trusted same-origin and `*.perplexity.ai` requests remain covered by fetch/XHR redaction. | Perplexity exposes a standard file input alongside its Lexical editor, so the replacement event flow preserves its upload workflow while the network layer supplies defense in depth |
 
 ---
 
@@ -376,7 +380,7 @@ Provides a visual-feedback layer that intercepts user input at the UI level befo
 - **Trigger:** Enter key pressed without Shift, Ctrl, Alt, or Meta modifiers
 - **Guard:** Skips if `__cloakerBypass` flag is set on the event
 - **Flow:**
-  1. Finds chat input element using prioritized selector list (10 selectors covering ChatGPT, Claude, Gemini, ProseMirror, Quill, etc.)
+      1. Finds the chat input element using prioritized selectors covering ChatGPT, Claude, Gemini, Grok, ProseMirror, Quill, and generic fallbacks
   2. Checks that the active element is within the input area
   3. Reads text from input (`.value` for textarea, `.innerText` for contenteditable)
   4. Applies `redactString()` — if no PII found, event passes through normally
@@ -540,8 +544,8 @@ User drops file onto page
     When Gemini's XHR/fetch fires the upload:
           │
     ┌─ Upload session creation (string body with x-goog-upload-header-content-length)?
-    │    └─ Wait for cleaning, re-open XHR with corrected content-length,
-    │       redact filename in JSON body (display_name/name fields), re-send
+    │    └─ Defer mutable upload headers, wait for cleaning, apply corrected
+    │       content-length/name, redact filename in JSON body, send once
     │
     ├─ Body is a File? → swap with cleaned version
     │
@@ -555,9 +559,9 @@ User drops file onto page
 - Key-based dedup cache (`_cleanCacheByKey` Map): Keys files by `name|size|lastModified` to deduplicate cleaning when Gemini creates multiple JS references to the same underlying file
 - Upload session body redaction: Case 0 parses JSON body and walks object tree replacing `display_name`/`displayName`/`name` fields matching the original filename with the cleaned name
 - Shared `C._cleanedFiles` WeakSet: Set in doc-handlers.js; checked by network-base.js fetch/XHR paths and Claude interceptor to skip files already cleaned by a platform interceptor
-- `setRequestHeader` tracking: Captures all XHR headers in a WeakMap to allow re-setting after XHR re-open
+- `setRequestHeader` tracking: Captures XHR headers in a WeakMap and defers mutable upload metadata until the cleaned file is ready
 - `Blob.prototype.slice` override: Tracks sliced Blobs to their source File for chunked upload interception
-- Upload session size correction: Detects `x-goog-upload-header-content-length` header, waits for cleaning, re-opens XHR with corrected size
+- Upload session size correction: Detects `x-goog-upload-header-content-length`, waits for cleaning, then applies the corrected size without reopening or resetting the configured XHR
 - CDN URL bypass: Skips `*.clients*.google.com/upload` and `content-push.googleapis.com/upload` in network-base.js middleware to avoid CSP violations; Gemini's own XHR/fetch overrides handle these directly
 
 #### 7.4.1 Format Detection Pipeline
@@ -670,7 +674,7 @@ A 340px-wide dark-themed popup accessible via the extension toolbar icon. All vi
 
 | Section | Contents |
 |---------|----------|
-| **Header** | Shield icon + "Blankit" title + "Local PII/PHI Redaction" subtitle |
+| **Header** | Shield icon + "Blankit" title + "Local PII Redaction" subtitle |
 | **Master Toggle** | Custom iOS-style switch labeled "Protection Active" |
 | **Deep Sleep Toggle** | Toggle to hide the floating badge and eye toggle from LLM pages, with hint text explaining what it does |
 | **Statistics Cards** | Two side-by-side cards: "Total Protected" (lifetime) and "This Session" (current) |
@@ -742,7 +746,7 @@ Users can export and import their custom redaction word sets:
 - Expandable panel within the popup (not a modal overlay)
 - **Header:** "AUDIT LOG" title with Export, Clear, and ✕ (close) action buttons
 - **Entries:** Scrollable list of redaction events, each showing:
-  - Timestamp and platform (ChatGPT / Claude / Gemini)
+      - Timestamp and platform (ChatGPT / Claude / Gemini / Grok / Perplexity)
   - Number of items redacted and source (text input or document upload)
   - Document filename (for file redaction events)
   - PII category tags
@@ -852,7 +856,7 @@ Every redaction event (text or document) is logged with:
 | Field | Description |
 |-------|-------------|
 | `timestamp` | ISO 8601 timestamp of the redaction event |
-| `platform` | LLM platform (ChatGPT, Claude, or Gemini) |
+| `platform` | LLM platform (ChatGPT, Claude, Gemini, Grok, or Perplexity) |
 | `itemCount` | Number of PII items redacted in this event |
 | `source` | Whether the redaction was from text input or document upload |
 | `filename` | Document filename (for file redaction events only) |
@@ -906,9 +910,9 @@ Every redaction event (text or document) is logged with:
 
 ### 7.10 Multi-Language Detection & Localization
 
-Blankit provides two distinct but complementary multi-language capabilities: **localized PII/PHI detection** (the engine understands sensitive data written in 8 languages) and a **localized popup UI** (the interface itself is translated). Both are designed for **automatic, zero-configuration** operation with graceful fallback to English, and neither regresses existing English behavior.
+Blankit provides two distinct but complementary multi-language capabilities: **localized PII/PHI detection** (the engine understands sensitive data written in 11 languages) and a **localized popup UI** (the interface itself is translated). Both are designed for **automatic, zero-configuration** operation with graceful fallback to English, and neither regresses existing English behavior.
 
-**Supported languages (8):** English, French, German, Spanish, Portuguese, Russian, Japanese, Chinese.
+**Supported languages (11):** English, French, German, Spanish, Portuguese, Russian, Japanese, Chinese, Hindi, Italian, Korean.
 
 #### 7.10.1 Multi-Language PII/PHI Detection
 
@@ -916,14 +920,14 @@ Blankit provides two distinct but complementary multi-language capabilities: **l
 
 - **Locale data module:** `locales.js` exposes a `DATA` dictionary keyed by language code. `build(langs)` merges the selected languages into a single `merged` structure consumed by the engine. The English entry is intentionally empty (`{}`) — English is handled entirely by the base `PATTERNS` array, guaranteeing no regression.
 - **Automatic activation:** By default **all supported languages are merged and active simultaneously**, with the browser UI language (via `chrome.i18n.getUILanguage()`) prioritized first. A user therefore gets detection for every supported language at once, plus the right language preference ordering — with no setup.
-- **Per-language data** includes: localized month names (for dates), street-address prefixes/suffixes (including German glued suffixes such as `-straße` and Cyrillic forms like `улица`), keyword anchors for passport / driver's license / medical record / bank / credential patterns, name-introduction phrases (`je m'appelle`, `меня зовут`, `私は…と申します`, `我叫`), common given names, CJK surnames, honorifics (`さん` / `様`, `先生` / `女士`), and stop-words to suppress false positives.
+- **Per-language data** includes: localized month names (for dates), street-address prefixes/suffixes, keyword anchors for passport / driver's license / medical record / bank / credential patterns, country-specific identifiers and geographic formats, name-introduction phrases, common given names, CJK surnames, honorifics, and stop-words to suppress false positives.
 - **Engine integration:** `pii-engine.js` reads `LOCALE = window.__cloakerLocales.merged` and **compiles localized regex patterns once at load**. They are spliced into the `PATTERNS` array at the `phones` index — after the distinctive English patterns but before the generic ones — so specificity ordering is preserved. A dedicated `redactLocaleNames()` pass then handles script-specific person-name detection: CJK honorific-suffixed and label-prefixed names, Cyrillic intro-anchored and patronymic-gated names, and Latin intro-anchored / known-name detection.
 - **Unified categories:** Localized matches map to the **same 17 categories and placeholder tokens** (`[NAME_N]`, `[DOB_N]`, `[PASSPORT_N]`, etc.), so the redaction map, audit log, and un-redact toggle behave identically regardless of language.
 - **Performance:** Localized regexes are built only once at module load (not per call); `redactString()`'s scrub cache amortizes repeated payloads to near-zero; and the non-Latin name passes early-skip on pure-English text. Net per-call overhead is a small, fixed constant.
 
 #### 7.10.2 Localized Popup UI (Chrome i18n)
 
-**Location:** `_locales/<lang>/messages.json` (en, fr, de, es, pt, ru, ja, zh) + `manifest.json` `"default_locale": "en"`
+**Location:** `_locales/<lang>/messages.json` (en, fr, de, es, pt, ru, ja, zh, hi, it, ko) + `manifest.json` `"default_locale": "en"`
 
 - **Automatic locale selection:** Chrome selects the message catalog matching the browser UI language at runtime. Missing locales or individual missing keys fall back to English (the `default_locale`) — **no user action required**.
 - **Static strings:** `popup.html` annotates UI elements with `data-i18n`, `data-i18n-title`, and `data-i18n-placeholder` attributes. On load, `popup.js` runs `localizeStatic()`, which applies `chrome.i18n.getMessage(key)` for each annotated element, using the inline English text as a graceful fallback.

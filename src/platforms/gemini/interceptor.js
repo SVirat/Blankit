@@ -170,12 +170,42 @@
     // =====================================================================
     var _nativeSetReqHeader = XMLHttpRequest.prototype.setRequestHeader;
     var _xhrHeaders = new WeakMap();  // xhr → Map(lowerName → {name, value})
+    var _appliedDeferredHeaders = new WeakSet();
+    var UPLOAD_URL_RE = /\.clients\d*\.google\.com\/upload|content-push\.googleapis\.com\/upload/;
+
+    function isUploadSession(xhr) {
+        var url = String(xhr._cloakerUrl || xhr._url || '');
+        return UPLOAD_URL_RE.test(url) && !url.includes('upload_id=');
+    }
 
     XMLHttpRequest.prototype.setRequestHeader = function (name, value) {
         if (!_xhrHeaders.has(this)) _xhrHeaders.set(this, new Map());
-        _xhrHeaders.get(this).set(name.toLowerCase(), { name: name, value: value });
+        var lowerName = name.toLowerCase();
+        _xhrHeaders.get(this).set(lowerName, { name: name, value: value });
+        if (isUploadSession(this) &&
+            (lowerName === 'x-goog-upload-header-content-length' || lowerName === 'x-goog-upload-file-name')) {
+            return;
+        }
         return _nativeSetReqHeader.call(this, name, value);
     };
+
+    function applyDeferredUploadHeaders(xhr, lengthValue, fileNameValue) {
+        if (_appliedDeferredHeaders.has(xhr)) return;
+        var headers = _xhrHeaders.get(xhr);
+        if (!headers) return;
+
+        var lengthHeader = headers.get('x-goog-upload-header-content-length');
+        if (lengthHeader) {
+            _nativeSetReqHeader.call(xhr, lengthHeader.name,
+                lengthValue != null ? String(lengthValue) : lengthHeader.value);
+        }
+        var nameHeader = headers.get('x-goog-upload-file-name');
+        if (nameHeader) {
+            _nativeSetReqHeader.call(xhr, nameHeader.name,
+                fileNameValue != null ? encodeURIComponent(fileNameValue) : nameHeader.value);
+        }
+        _appliedDeferredHeaders.add(xhr);
+    }
 
     // =====================================================================
     // Slice tracking — map sliced Blobs back to their source File
@@ -215,7 +245,6 @@
     // them.  Calling native functions directly avoids the network-base
     // middleware which reconstructs requests and can trigger CSP violations.
     var _prevXHRSend = XMLHttpRequest.prototype.send;
-    var UPLOAD_URL_RE = /\.clients\d*\.google\.com\/upload|content-push\.googleapis\.com\/upload/;
 
     XMLHttpRequest.prototype.send = function (body) {
         var xhr = this;
@@ -225,8 +254,8 @@
 
         // Case 0: Upload session creation — correct the declared file size
         // Gemini sends a String body with x-goog-upload-header-content-length
-        // that declares the original (uncleaned) file size.  We delay this
-        // request until cleaning completes, then re-open with corrected size.
+        // that declares the original (uncleaned) file size. We defer the two
+        // mutable headers until cleaning completes so configured XHR state is preserved.
         if (typeof body === 'string' && UPLOAD_URL_RE.test(xhrUrl) && !xhrUrl.includes('upload_id=')) {
             var hdrs = _xhrHeaders.get(xhr);
             if (hdrs && hdrs.has('x-goog-upload-header-content-length')) {
@@ -236,21 +265,7 @@
                     getCleanedFile(matchFile).then(function (cleaned) {
                         var cleanedSize = cleaned.size;
                         var cleanedName = _origName(cleaned);
-                        // Re-open resets headers; keeps event listeners
-                        var openMethod = xhr._cloakerMethod || 'POST';
-                        C._origXHROpen.call(xhr, openMethod, xhrUrl, true);
-                        // Re-set all tracked headers with corrected content-length
-                        // and redacted filename
-                        hdrs.forEach(function (info, key) {
-                            if (key === 'x-goog-upload-header-content-length') {
-                                _nativeSetReqHeader.call(xhr, info.name, String(cleanedSize));
-                            } else if (key === 'x-goog-upload-file-name') {
-                                _nativeSetReqHeader.call(xhr, info.name,
-                                    encodeURIComponent(cleanedName));
-                            } else {
-                                _nativeSetReqHeader.call(xhr, info.name, info.value);
-                            }
-                        });
+                        applyDeferredUploadHeaders(xhr, cleanedSize, cleanedName);
                         // Also redact the filename inside the JSON body
                         var sendBody = body;
                         try {
@@ -274,11 +289,16 @@
                         C._origXHRSend.call(xhr, sendBody);
                         _origSizeToFile.delete(declaredSize);
                     }).catch(function () {
+                        applyDeferredUploadHeaders(xhr);
                         _prevXHRSend.call(xhr, body);
                     });
                     return;
                 }
             }
+        }
+
+        if (typeof body === 'string' && isUploadSession(xhr)) {
+            applyDeferredUploadHeaders(xhr);
         }
 
         // Case 1: body is a cleanable File

@@ -15,7 +15,9 @@
         /\/api\/append_message/,
         /\/api\/organizations\/.+\/chat_conversations\/.+\/completion/,
         /\/api\/generate/,
-        /BatchExecute/
+        /BatchExecute/,
+        /\/rest\/app-chat\//,
+        /\/rest\/sse\/perplexity_ask/
     ];
 
     function shouldRedactUrl(url) {
@@ -51,7 +53,9 @@
             var h = parsed.hostname;
             if (/\.(googleapis|google|gstatic|googleusercontent)\.com$/.test(h)) return true;
             if (/\.(openai|anthropic)\.com$/.test(h)) return true;
-            if (h === 'chatgpt.com' || h === 'claude.ai') return true;
+            if (h === 'chatgpt.com' || h === 'claude.ai' || h === 'grok.com' || h.endsWith('.grok.com')) return true;
+            if (h === 'x.ai' || h.endsWith('.x.ai')) return true;
+            if (h === 'perplexity.ai' || h.endsWith('.perplexity.ai')) return true;
             return false;
         } catch (e) {
             return true; // relative URLs are same-origin

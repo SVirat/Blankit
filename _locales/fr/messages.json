@@ -12,7 +12,7 @@
   "toggleProtection": {
     "message": "Activer/désactiver la protection Blankit"
   },
-  "headerSubtitle": { "message": "Masquage local PII/PHI" },
+  "headerSubtitle": { "message": "Masquage local PII" },
   "protectionActive": { "message": "Protection active" },
   "deepSleep": { "message": "Veille profonde" },
   "deepSleepHint": { "message": "Masque le badge flottant et le bouton œil sur la page" },
@@ -67,6 +67,20 @@
   "copied": { "message": "Copié !" },
   "auditMore1": { "message": "Affichage de 50 sur " },
   "auditMore2": { "message": ". Exportez pour le journal complet." },
+  "onboardingTitle": { "message": "Bienvenue sur Blankit" },
+  "onboardingWelcome": { "message": "Bienvenue sur Blankit" },
+  "onboardingSubtitle": { "message": "Masquage des données personnelles en temps réel pour vos conversations avec l’IA" },
+  "onboardingHowTitle": { "message": "Fonctionnement" },
+  "onboardingHowText": { "message": "Blankit s’interpose entre vous et votre assistant IA. Il détecte et masque automatiquement les informations sensibles avant qu’elles n’atteignent le cloud, puis les restaure dans les réponses pour préserver votre flux de travail." },
+  "onboardingToggleHint": { "message": "Cliquez sur l’icône en bas à droite pour activer ou désactiver la protection, ou utilisez la barre d’outils." },
+  "onboardingLocalTitle": { "message": "Traitement 100 % local" },
+  "onboardingLocalText": { "message": "Tout le masquage s’effectue dans votre navigateur. Aucune donnée n’est envoyée à des serveurs externes. Aucune analyse. Aucun suivi. Vos informations restent sur votre appareil." },
+  "onboardingInputsTitle": { "message": "Types d’entrée pris en charge" },
+  "onboardingPlainText": { "message": "Texte brut" },
+  "onboardingPartial": { "message": "(partiel)" },
+  "onboardingPlatformsTitle": { "message": "Plateformes prises en charge" },
+  "onboardingCoverageTitle": { "message": "12 types de données personnelles couverts" },
+  "onboardingFooter": { "message": "Cliquez sur l’icône Blankit dans votre barre d’outils pour commencer." },
   "itemSingular": { "message": "élément" },
   "itemsPlural": { "message": "éléments" }
 }

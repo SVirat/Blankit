@@ -26,11 +26,62 @@
     var _onboardEyeDeferred = false;
 
     // =========================================================================
+    // Theme Detection
+    // =========================================================================
+
+    function detectPageTheme() {
+        var roots = [document.documentElement, document.body];
+        var markers = '';
+        for (var i = 0; i < roots.length; i++) {
+            if (!roots[i]) continue;
+            markers += ' ' + (roots[i].getAttribute('data-theme') || '');
+            markers += ' ' + (roots[i].className || '');
+        }
+        if (/(^|\s)(dark|dark-theme|theme-dark)(\s|$)/i.test(markers)) return 'dark';
+        if (/(^|\s)(light|light-theme|theme-light)(\s|$)/i.test(markers)) return 'light';
+
+        for (var j = 0; j < roots.length; j++) {
+            if (!roots[j]) continue;
+            var color = getComputedStyle(roots[j]).backgroundColor;
+            var match = color && color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+            if (!match || (match[4] !== undefined && Number(match[4]) === 0)) continue;
+            var luminance = (Number(match[1]) * 299 + Number(match[2]) * 587 + Number(match[3]) * 114) / 1000;
+            return luminance < 150 ? 'dark' : 'light';
+        }
+
+        return window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+    }
+
+    function prepareUiElement(element) {
+        element.setAttribute('data-cloaker-ui', '');
+        element.setAttribute('data-cloaker-theme', detectPageTheme());
+        return element;
+    }
+
+    function refreshUiTheme() {
+        var theme = detectPageTheme();
+        document.querySelectorAll('[data-cloaker-ui]').forEach(function (element) {
+            element.setAttribute('data-cloaker-theme', theme);
+        });
+    }
+
+    function startThemeWatch() {
+        var observer = new MutationObserver(refreshUiTheme);
+        var options = { attributes: true, attributeFilter: ['class', 'data-theme', 'style'] };
+        observer.observe(document.documentElement, options);
+        if (document.body) observer.observe(document.body, options);
+        if (window.matchMedia) {
+            var media = window.matchMedia('(prefers-color-scheme: light)');
+            if (media.addEventListener) media.addEventListener('change', refreshUiTheme);
+        }
+    }
+
+    // =========================================================================
     // UI: Floating Badge / Toggle Button
     // =========================================================================
 
     function createBadge() {
-        var badge = document.createElement('div');
+        var badge = prepareUiElement(document.createElement('div'));
         badge.id = 'cloaker-badge';
         badge.title = 'Toggle Cloaker protection';
         badge.innerHTML = '<img src="' + chrome.runtime.getURL('icons/icon48.png') + '" width="28" height="28" alt="Blankit" style="pointer-events:none;">';
@@ -92,7 +143,7 @@
     function showScrubBubble(count, fileName, blobUrl) {
         dismissScrubBubble();
 
-        var bubble = document.createElement('div');
+        var bubble = prepareUiElement(document.createElement('div'));
         bubble.id = 'cloaker-scrub-bubble';
 
         var msg = document.createElement('div');
@@ -156,10 +207,10 @@
     // =========================================================================
 
     function createUnredactButton() {
-        var btn = document.createElement('div');
+        var btn = prepareUiElement(document.createElement('div'));
         btn.id = 'cloaker-unredact-btn';
         btn.title = 'Un-redact: reveal original values';
-        btn.textContent = '\u{1F441}';
+        btn.textContent = '\u{1F441}\uFE0F';
         btn.style.display = 'none';
         btn.addEventListener('click', function () {
             toggleUnredact();
@@ -280,6 +331,8 @@
         if (host.indexOf('chatgpt') !== -1) return 'chatgpt.com';
         if (host.indexOf('claude') !== -1) return 'claude.ai';
         if (host.indexOf('gemini') !== -1) return 'gemini.google.com';
+        if (host.indexOf('grok') !== -1) return 'grok.com';
+        if (host.indexOf('perplexity') !== -1) return 'perplexity.ai';
         return host;
     }
 
@@ -322,7 +375,7 @@
         var existing = document.getElementById(id);
         if (existing) return existing;
 
-        var tip = document.createElement('div');
+        var tip = prepareUiElement(document.createElement('div'));
         tip.id = id;
         tip.className = 'cloaker-onboard-tip ' + cssClass;
 
@@ -453,6 +506,9 @@
     // =========================================================================
 
     chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
+        if (msg.type === 'GET_PAGE_THEME') {
+            sendResponse({ theme: detectPageTheme() });
+        }
         if (msg.type === 'TOGGLE_CLOAKER') {
             enabled = msg.enabled;
             updateUI();
@@ -499,6 +555,7 @@
         createBadge();
         createUnredactButton();
         updateUI();
+        startThemeWatch();
 
         // Load custom words from sync storage (survives uninstall/reinstall)
         chrome.storage.sync.get(['customWords'], function (syncResult) {

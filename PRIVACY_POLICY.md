@@ -1,13 +1,13 @@
 # Privacy Policy — Blankit
 
 **Effective Date:** March 17, 2026  
-**Last Updated:** March 20, 2026
+**Last Updated:** September 1, 2026
 
 ---
 
 ## 1. Introduction
 
-Blankit ("the Extension") is a Chrome browser extension that provides real-time, local-first redaction of Personally Identifiable Information (PII) and Protected Health Information (PHI) when you interact with cloud-based AI assistants (ChatGPT, Claude, Gemini). This Privacy Policy explains what data the Extension collects, how it is used, and your rights regarding that data.
+Blankit ("the Extension") is a Chrome browser extension that provides real-time, local-first redaction of Personally Identifiable Information (PII) and Protected Health Information (PHI) when you interact with cloud-based AI assistants (ChatGPT, Claude, Gemini, Grok, and Perplexity). This Privacy Policy explains what data the Extension collects, how it is used, and your rights regarding that data.
 
 ---
 
@@ -17,7 +17,7 @@ All PII/PHI detection and redaction processing occurs **entirely within your bro
 
 - **Text redaction:** Performed locally via JavaScript regex matching before any request leaves your browser.
 - **Document redaction:** Uploaded files (DOCX, XLSX, PPTX, TXT, CSV, etc.) are parsed and redacted in-browser using bundled libraries (JSZip). PDF support is partial (best-effort text extraction; complex layouts and scanned pages may not be fully redacted). No file content is sent externally.
-- **Custom word redaction:** User-defined words are replaced with non-deterministic 8-character alphanumeric hashes (e.g., `[k7m2x9p1]`). Custom words are stored in `chrome.storage.sync` and never leave your browser.
+- **Custom word redaction:** User-defined words are replaced with non-deterministic 6-character hexadecimal hashes (e.g., `[a3f7c2]`). Custom words are stored in `chrome.storage.sync` and never leave your browser through Blankit.
 - **Redaction map:** The mapping between placeholders (e.g., `[EMAIL_1]`) and original values is stored in `chrome.storage.local` on your device and is cleared automatically when the browser restarts or when you click "Clear Session."
 - **Un-redact toggle:** The in-page eye icon (👁) that reveals original values operates entirely within the browser DOM — no data is transmitted when toggling between redacted and un-redacted views.
 
@@ -56,7 +56,7 @@ The Extension maintains an **audit log** of redaction events for your compliance
 ### What the audit log records
 
 - Timestamp of each redaction event
-- Platform where redaction occurred (ChatGPT, Claude, or Gemini)
+- Platform where redaction occurred (ChatGPT, Claude, Gemini, Grok, or Perplexity)
 - Number of PII items redacted
 - Source of redaction (text input or document upload)
 - Document filename (for file redaction events only)
@@ -84,7 +84,7 @@ The Extension requests the minimum permissions necessary:
 | Permission | Why it's needed |
 |------------|-----------------|
 | `storage` | Store your settings, statistics, audit log, and redaction map locally on your device |
-| Host access to `chatgpt.com`, `claude.ai`, `gemini.google.com` | Inject content scripts to intercept and redact PII on these sites |
+| Host access to `chatgpt.com`, `claude.ai`, `gemini.google.com`, `grok.com`, and `*.perplexity.ai` | Inject content scripts to intercept and redact PII on these sites |
 
 ---
 

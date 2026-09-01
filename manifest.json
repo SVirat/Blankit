@@ -1,14 +1,16 @@
 {
   "manifest_version": 3,
   "name": "__MSG_appName__",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "__MSG_appDescription__",
   "default_locale": "en",
   "permissions": ["storage"],
   "host_permissions": [
     "https://chatgpt.com/*",
     "https://claude.ai/*",
-    "https://gemini.google.com/*"
+    "https://gemini.google.com/*",
+    "https://grok.com/*",
+    "https://*.perplexity.ai/*"
   ],
   "background": {
     "service_worker": "src/background/service-worker.js"
@@ -18,7 +20,9 @@
       "matches": [
         "https://chatgpt.com/*",
         "https://claude.ai/*",
-        "https://gemini.google.com/*"
+        "https://gemini.google.com/*",
+        "https://grok.com/*",
+        "https://*.perplexity.ai/*"
       ],
       "js": [
         "lib/jszip-pre.js",
@@ -31,10 +35,14 @@
         "src/platforms/chatgpt/selectors.js",
         "src/platforms/claude/selectors.js",
         "src/platforms/gemini/selectors.js",
+        "src/platforms/grok/selectors.js",
+        "src/platforms/perplexity/selectors.js",
         "src/core/network-base.js",
         "src/platforms/chatgpt/interceptor.js",
         "src/platforms/claude/interceptor.js",
-        "src/platforms/gemini/interceptor.js"
+        "src/platforms/gemini/interceptor.js",
+        "src/platforms/grok/interceptor.js",
+        "src/platforms/perplexity/interceptor.js"
       ],
       "run_at": "document_start",
       "world": "MAIN"
@@ -43,7 +51,9 @@
       "matches": [
         "https://chatgpt.com/*",
         "https://claude.ai/*",
-        "https://gemini.google.com/*"
+        "https://gemini.google.com/*",
+        "https://grok.com/*",
+        "https://*.perplexity.ai/*"
       ],
       "js": ["src/content/bridge.js"],
       "css": ["src/content/styles.css"],
@@ -73,7 +83,9 @@
       "matches": [
         "https://chatgpt.com/*",
         "https://claude.ai/*",
-        "https://gemini.google.com/*"
+        "https://gemini.google.com/*",
+        "https://grok.com/*",
+        "https://*.perplexity.ai/*"
       ]
     }
   ]
